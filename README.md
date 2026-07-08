@@ -68,19 +68,26 @@ task (YAML/JSON)
   -> report      Markdown (+ optional HTML)  <-  JSONL trace
 ```
 
-## Target CLI
+## CLI
+
+Live today:
 
 ```bash
 claimverifier check-env
+claimverifier version
 claimverifier validate-fixtures tasks/
-claimverifier extract-claims --task tasks/table_claims/basic_accuracy_claim.yaml --out results/runs/
-claimverifier verify        --task tasks/table_claims/basic_accuracy_claim.yaml --out results/runs/
+claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml --out results/runs/
+```
+
+Target (each lands with its subsystem — see the milestones):
+
+```bash
+claimverifier verify        --task tasks/table_claims/accuracy_improvement.yaml --out results/runs/
 claimverifier run-suite     --suite tasks/smoke_suite.yaml --out results/runs/
 claimverifier report        --run results/runs/<run_id> --out results/reports/<run_id>.md
 ```
 
-(The CLI is implemented across the milestones; commands come online as their
-subsystems land.)
+An unimplemented command fails loudly rather than pretending to work.
 
 ## Building the system (milestone runner)
 

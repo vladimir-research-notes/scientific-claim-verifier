@@ -31,7 +31,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 2 complete — fixture tasks &amp; validation</span> &nbsp; <span class="status planned">Milestone 3 next: rule-based claim extraction</span></p>
+  <p><span class="status done">status: Milestone 3 complete — rule-based claim extraction</span> &nbsp; <span class="status planned">Milestone 4 next: evidence linker</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -71,13 +71,27 @@
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). Three commands are live now; the remaining verification commands come
+  <code>pyyaml</code>). Four commands are live now; the remaining verification commands come
   online with their subsystems.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
 claimverifier check-env          # offline interpreter + library self-check
 claimverifier validate-fixtures  # validate task fixtures under tasks/
+claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
+  <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
+  the task's gold target — the audit trail is the product, not a side effect:</p>
+  <pre><code>Normalized      : accuracy: 72 -> 78 (&gt;) %
+expected_value  : 78.0     baseline_value : 72.0
+operator        : &gt;        units          : %
+metrics         : accuracy datasets       : SST-2
+
+Rules fired:
+  - from-to: 72.0 -> 78.0
+  - operator: &gt;
+  - units: %
+
+Gold comparison : 8/8 scored fields match</code></pre>
   <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
   the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>
 

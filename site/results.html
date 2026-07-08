@@ -26,9 +26,65 @@
 </header>
 <main>
   <h1>Results</h1>
-  <p class="lede">This page reports the offline smoke-suite outcomes: support-label and
-  reproducibility-status distributions, failure-mode counts, and links to generated reports.</p>
-  <p><span class="status planned">status: no suite run yet — populated in Milestone 8</span></p>
+  <p class="lede">This page reports measured outcomes. Every number is reproducible offline on a
+  single CPU with the command shown beside it. Numbers that do not exist yet are marked pending,
+  never estimated.</p>
+  <p><span class="status done">status: Milestone 3 extraction measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+
+  <h2>Claim extraction vs. gold (Milestone 3)</h2>
+  <pre><code>python3 -m pytest tests/test_extraction.py -q     # 36 tests
+claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. gold</code></pre>
+  <p>Per-field recovery of the rule-based extractor against each task's gold extraction target,
+  over all six committed fixtures. List fields compare as sets; floats with
+  <code>math.isclose</code>. <code>normalized_claim</code> is not scored — it is the extractor's
+  own notation, not a gold match target.</p>
+
+  <table>
+    <tr><th>Field</th><th>Recovered</th><th>Channel</th></tr>
+    <tr><td><code>expected_value</code></td><td>6/6</td><td>reliable</td></tr>
+    <tr><td><code>baseline_value</code></td><td>6/6</td><td>reliable</td></tr>
+    <tr><td><code>comparison_operator</code></td><td>6/6</td><td>reliable</td></tr>
+    <tr><td><code>units</code></td><td>6/6</td><td>reliable</td></tr>
+    <tr><td><code>metrics</code></td><td>6/6</td><td>reliable</td></tr>
+    <tr><td><code>datasets</code></td><td>6/6</td><td>best effort</td></tr>
+    <tr><td><code>entities</code></td><td>6/6</td><td>best effort</td></tr>
+    <tr><td><code>conditions</code></td><td><strong>5/6</strong></td><td>best effort</td></tr>
+  </table>
+
+  <table>
+    <tr><th>Task</th><th>Claim type</th><th>Scored fields</th></tr>
+    <tr><td><code>accuracy_improvement</code></td><td><code>comparison_claim</code></td><td>8/8</td></tr>
+    <tr><td><code>dataset_mean</code></td><td><code>dataset_claim</code></td><td>8/8</td></tr>
+    <tr><td><code>gc_content</code></td><td><code>code_reproduction_claim</code></td><td>8/8</td></tr>
+    <tr><td><code>recompute_accuracy</code></td><td><code>code_reproduction_claim</code></td><td>8/8</td></tr>
+    <tr><td><code>underspecified_split</code></td><td><code>numeric_claim</code></td><td>8/8</td></tr>
+    <tr><td><code>synthetic_data_passage</code></td><td><code>descriptive_claim</code></td><td>7/8</td></tr>
+  </table>
+
+  <div class="callout"><strong>How to read this.</strong> Six hand-authored fixtures are a
+  <em>sanity check, not a benchmark</em>, and the extractor's lexicons were chosen with them in
+  view. A <code>6/6</code> on <code>datasets</code> means "both dataset mentions present were
+  found" — not that dataset extraction is solved. The <strong><code>5/6</code> on
+  <code>conditions</code> is the most informative number here</strong>: the miss is
+  <code>synthetic_data_passage</code>, whose gold condition <code>"synthetic data only"</code> is
+  a semantic paraphrase. The extractor returns <code>[]</code> rather than guessing — by design,
+  since an empty field is scored <code>underspecified</code> downstream while a confidently wrong
+  field is not.</div>
+
+  <h2>Fixture validation (Milestone 2)</h2>
+  <pre><code>python3 scripts/01_validate_fixtures.py</code></pre>
+  <p>6 tasks ok, 0 failed, 0 warnings — <code>VALID</code>.</p>
+
+  <h2>Tests and lint</h2>
+  <table>
+    <tr><th>Milestone</th><th>New tests</th><th>Total</th></tr>
+    <tr><td>M0</td><td>13</td><td>13</td></tr>
+    <tr><td>M1</td><td>25</td><td>38</td></tr>
+    <tr><td>M2</td><td>28</td><td>66</td></tr>
+    <tr><td>M3</td><td>36</td><td>102</td></tr>
+  </table>
+  <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
+  anywhere in the default path. <code>ruff check .</code> passes.</p>
 
   <h2>Smoke suite (pending)</h2>
   <p>The smoke suite will contain 8–15 verification tasks across the task families and run

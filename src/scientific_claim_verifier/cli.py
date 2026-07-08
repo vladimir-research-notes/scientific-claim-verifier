@@ -7,11 +7,12 @@ Commands online so far:
 - ``claimverifier check-env``          — offline environment self-check (M0).
 - ``claimverifier version``            — print the package version (M0).
 - ``claimverifier validate-fixtures``  — validate task fixtures (M2).
+- ``claimverifier extract-claims``     — rule-based claim extraction (M3).
 
 The remaining verification commands advertised in ``docs/PLAN.md`` section 10
-(``extract-claims``, ``verify``, ``run-suite``, ``report``) come online in their
-respective milestones. They are deliberately not registered yet, so an
-unimplemented command fails loudly rather than pretending to work.
+(``verify``, ``run-suite``, ``report``) come online in their respective
+milestones. They are deliberately not registered yet, so an unimplemented
+command fails loudly rather than pretending to work.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ import argparse
 
 from . import __version__, envcheck
 from .artifacts import validation
+from .claims import extraction
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,6 +65,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Directory of task files to validate (default: {validation.DEFAULT_TASKS_DIR}/).",
     )
 
+    extract = subparsers.add_parser(
+        "extract-claims",
+        help="Run the rule-based claim extractor on a task (offline).",
+    )
+    extraction.add_extract_arguments(extract)
+
     return parser
 
 
@@ -78,6 +86,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "validate-fixtures":
         return validation.run([args.tasks_dir])
+    if args.command == "extract-claims":
+        return extraction.extract_and_report(args.task, out_dir=args.out, as_json=args.json)
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is
     # a friendly, non-error introduction.

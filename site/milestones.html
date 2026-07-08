@@ -30,7 +30,7 @@
   <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
   run, each committed locally with docs and website updated. Guards between milestones require a
   new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
-  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status done">M2 complete</span> &nbsp; <span class="status planned">Milestones 3–13 pending</span></p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status done">M2 complete</span> &nbsp; <span class="status done">M3 complete</span> &nbsp; <span class="status planned">Milestones 4–13 pending</span></p>
 
   <h2>Bootstrap (done)</h2>
   <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
@@ -73,10 +73,21 @@
   <span class="pill ok">28 new tests</span> <span class="pill ok">66 total</span>
   <span class="pill ok">6 fixtures valid</span> <span class="pill ok">ruff clean</span></p>
 
-  <h3>M3 — Rule-based claim extraction <span class="pill">planned</span></h3>
-  <p>Transparent extractors for numeric values, comparison phrases, metric names,
-  dataset/table references, and passage IDs — a clearly-labelled heuristic baseline, tested
-  against expected extracted claims.</p>
+  <h3>M3 — Rule-based claim extraction <span class="pill ok">done</span></h3>
+  <p>The <code>claims/</code> package turns the claim <em>as authored</em> into a populated
+  <code>ScientificClaim</code>: numeric values, comparison operator, units, metrics, datasets,
+  entities, conditions, and a deterministic <code>normalized_claim</code>. Transparent
+  extractors — regexes plus small closed lexicons, <strong>labelled as heuristics</strong> —
+  each traceable to the named rule that fired (<code>rules_fired</code>), so a reviewer can see
+  why any field was populated. The rules are conservative: they leave a field empty rather than
+  guess, because an empty field is scored <code>underspecified</code> downstream while a
+  confidently wrong one is not. A per-field scorer compares each extraction to the task's gold
+  target. Reachable via <code>claimverifier extract-claims</code> and
+  <code>scripts/02_extract_claims.py</code>; documented in <code>docs/EXTRACTION.md</code>, with
+  measured results on <a href="results.html">Results</a>.
+  <span class="pill ok">36 new tests</span> <span class="pill ok">102 total</span>
+  <span class="pill ok">7/8 fields 6/6</span> <span class="pill">conditions 5/6</span>
+  <span class="pill ok">ruff clean</span></p>
 
   <h3>M4 — Evidence linker <span class="pill">planned</span></h3>
   <p>Exact passage lookup, a keyword-overlap baseline, table/dataset ID matching, and

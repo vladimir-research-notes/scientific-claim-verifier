@@ -29,7 +29,7 @@
   <p class="lede">A claim is not free text to be summarized — it is a typed object with explicit,
   checkable fields. This lets checks target specific values and lets the report separate the
   claim from the evidence and the inference.</p>
-  <p><span class="status done">status: Milestone 1 complete — typed <code>pydantic</code> models landed in <code>src/scientific_claim_verifier/schemas.py</code></span></p>
+  <p><span class="status done">status: Milestone 1 complete — typed <code>pydantic</code> models landed in <code>src/scientific_claim_verifier/schemas.py</code></span> &nbsp; <span class="status done">Milestone 3 complete — rule-based extraction populates these fields</span></p>
 
   <h2>ScientificClaim fields</h2>
   <table>
@@ -69,6 +69,48 @@
   <code>schemas.py</code> so the docs and the code cannot drift. Every model forbids unknown
   fields (<code>extra="forbid"</code>), and the vocabularies below are <code>StrEnum</code>s
   whose values are exactly the strings shown here.</div>
+
+  <h2>Rule-based extraction (Milestone 3)</h2>
+  <p>The claim <em>as authored</em> carries only an id, its text, its type, and provenance. The
+  <code>RuleBasedClaimExtractor</code> populates the rest of the fields above from the claim text
+  and its artifact bundle. It is <strong>regular expressions plus small closed lexicons</strong> —
+  no learned NLP, no parsing, no inference — and it is labelled a heuristic everywhere it appears.
+  What it buys is the property this project exists for: every populated field is produced by a
+  named rule, and the rules that fired are recorded, so a reviewer can see exactly why a value was
+  extracted.</p>
+
+  <table>
+    <tr><th>Field</th><th>Rule</th><th>Channel</th></tr>
+    <tr><td><code>expected_value</code></td><td>The "to" value of <code>from X to Y</code>, else the first numeric token that is not a sample count.</td><td>reliable</td></tr>
+    <tr><td><code>baseline_value</code></td><td>The "from" value of <code>from X to Y</code>. Nothing else sets it.</td><td>reliable</td></tr>
+    <tr><td><code>comparison_operator</code></td><td><code>from X to Y</code> direction → comparison verb → claim-type default (<code>~</code> for recomputation claims, <code>=</code> for a plain numeric claim).</td><td>reliable</td></tr>
+    <tr><td><code>units</code></td><td>A <code>%</code> sign, or a percentage-scale metric whose value exceeds 1.</td><td>reliable</td></tr>
+    <tr><td><code>metrics</code></td><td>A closed surface-form → canonical-name lexicon, on word boundaries.</td><td>reliable</td></tr>
+    <tr><td><code>datasets</code></td><td>A known-name lexicon plus the phrase <code>&lt;name&gt; dataset</code>.</td><td>best effort</td></tr>
+    <tr><td><code>entities</code></td><td>A <code>Method X</code> pattern plus a minimal role lexicon.</td><td>best effort</td></tr>
+    <tr><td><code>conditions</code></td><td>Sample counts only (<code>n = 12</code>). Semantic conditions are <em>not</em> guessed.</td><td>best effort</td></tr>
+  </table>
+
+  <p>Two rules carry most of the weight. Digits inside identifiers are <strong>not</strong>
+  numbers, so the <code>2</code> in <code>SST-2</code> never becomes a value. And an integer
+  followed by a count noun is a count, not a headline value, so
+  <em>"12 samples with a mean of 3.4"</em> extracts <code>3.4</code>.</p>
+
+  <div class="callout">The rules are deliberately <strong>conservative</strong>: they prefer to
+  leave a field empty over guessing. An unextracted field is scored
+  <code>underspecified</code> downstream, which is an honest outcome; a confidently wrong field is
+  not. On the six committed fixtures the extractor recovers seven of the eight scored fields on
+  every task, and <code>conditions</code> on five of six — the miss is a free-form semantic
+  condition it declines to guess. See <a href="results.html">Results</a> and
+  <code>docs/EXTRACTION.md</code>.</div>
+
+  <p><code>normalized_claim</code> is the extractor's own canonical notation
+  (<code>accuracy: 72 -&gt; 78 (&gt;) %</code>). It is deliberately <em>not</em> scored against a
+  task's hand-authored gold string: a rule-based system cannot be expected to reproduce arbitrary
+  phrasing, and scoring it as if it could would be overclaiming. Searching the bundle for the
+  passage that best <em>supports</em> a claim — with a relevance score — is the evidence linker's
+  job (Milestone 4); the extractor only records references the claim text names explicitly, and
+  leaves <code>evidence_links</code> empty.</p>
 
   <h2>Design intent</h2>
   <ul>
