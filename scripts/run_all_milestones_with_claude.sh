@@ -39,6 +39,18 @@ COST_FRACTION="${COST_FRACTION:-0.80}"
 # Optional hard cap on agent turns per milestone (runaway guard). Empty = no cap.
 MAX_TURNS="${MAX_TURNS:-}"
 
+# Extra flags passed verbatim to every `claude -p` invocation. Defaults to
+# acceptEdits so file edits are applied without prompting; the committed
+# .claude/settings.json also sets defaultMode=acceptEdits and a command
+# allowlist, so a normal milestone run needs no interactive approvals.
+# It never enables bypass/dangerous mode (settings.json disables that).
+# Override, e.g.:  CLAUDE_EXTRA_ARGS="" ./scripts/run_all_milestones_with_claude.sh
+CLAUDE_EXTRA_ARGS="${CLAUDE_EXTRA_ARGS---permission-mode acceptEdits}"
+EXTRA_ARGS_ARR=()
+if [ -n "$CLAUDE_EXTRA_ARGS" ]; then
+  read -ra EXTRA_ARGS_ARR <<< "$CLAUDE_EXTRA_ARGS"
+fi
+
 LOG_DIR="logs"
 COST_LOG="${LOG_DIR}/milestone-costs.log"
 CUMULATIVE_USD=0
@@ -66,6 +78,7 @@ else
   echo "Cost guard : OFF  (set WEEKLY_BUDGET_USD to enable a ${COST_FRACTION} stop)"
 fi
 [ -n "$MAX_TURNS" ] && echo "Per-milestone turn cap : ${MAX_TURNS}"
+echo "Claude extra args : ${CLAUDE_EXTRA_ARGS:-<none>}"
 
 echo "Running milestones $START..$END with Claude Code (one claude -p run per milestone)."
 echo "Stops on: Claude failure, no new commit, dirty tree, pytest failure,"
@@ -93,6 +106,7 @@ for MILESTONE in $(seq "$START" "$END"); do
   RUN_LOG="${LOG_DIR}/milestone-$(printf '%02d' "$MILESTONE").log"
 
   CLAUDE_ARGS=(-p "Use ${TEMPLATE}. Implement Milestone ${MILESTONE} only. Do not implement later milestones. Do not push. Commit locally when the milestone is complete. Stop after exactly this one milestone." --output-format json)
+  [ ${#EXTRA_ARGS_ARR[@]} -gt 0 ] && CLAUDE_ARGS+=("${EXTRA_ARGS_ARR[@]}")
   [ -n "$MAX_TURNS" ] && CLAUDE_ARGS+=(--max-turns "$MAX_TURNS")
 
   # Run Claude; capture the JSON result to a log (gitignored via logs/).

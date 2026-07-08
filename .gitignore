@@ -1,6 +1,7 @@
-# Local Claude Code overrides (never commit personal/local settings)
+# Local Claude Code overrides (never commit personal/local settings).
+# The shared, auditable allowlist `.claude/settings.json` IS committed;
+# `.claude/settings.local.json` (personal overrides) is not.
 .claude/settings.local.json
-.claude/settings.json
 
 # Python virtual environments
 .venv/

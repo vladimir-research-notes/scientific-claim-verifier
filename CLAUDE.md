@@ -116,4 +116,16 @@ pages: `index.html` (Overview), `claim-schema.html`, `artifact-bundles.html`,
 `checks.html`, `reproducibility.html`, `example-report.html`, `results.html`,
 `limitations.html`, `safety.html`, `roadmap.html`, and `milestones.html`
 (an explanation of every milestone and its status). Update the site every
-milestone. Serve locally with `scripts/serve_site.sh` (port 9002).
+milestone. Serve locally with `scripts/serve_site.sh` (port 9002). To verify
+pages, use Python's stdlib HTTP client (e.g. `urllib.request`) — `curl`/`wget`
+are denied by the permission policy.
+
+## Permissions
+
+Autonomous runs use `.claude/settings.json` (committed): `acceptEdits` default
+mode plus a command allowlist (`python3`, `pytest`, `ruff`, `git` read/commit
+verbs, common read-only shell tools). The deny list blocks `git push`/`remote`,
+`sudo`, `curl`/`wget`/network tools, `rm`, `bash -c`/`eval`, and secret reads;
+bypass-permissions mode is disabled. Work within the allowlist; do not attempt
+to push, fetch the network, or read secrets. Personal overrides belong in the
+gitignored `.claude/settings.local.json`.

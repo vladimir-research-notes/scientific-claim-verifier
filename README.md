@@ -94,6 +94,29 @@ Between milestones the runner enforces guards: a new commit must exist, the tree
 must be clean, `pytest` must pass, and (once present) fixtures must validate. It
 stops on any failure so you can inspect.
 
+### Permissions (no prompts, never dangerous)
+
+Autonomous milestone runs need to proceed without interactive approvals, but
+without ever enabling a dangerous "bypass everything" mode. Two mechanisms
+combine:
+
+- **`.claude/settings.json`** (committed, auditable) sets
+  `defaultMode: acceptEdits` and an explicit command **allowlist** (`python3`,
+  `pytest`, `ruff`, `git status/add/commit/...`, and common read-only shell
+  tools). Its **deny list** blocks `git push`/`git remote`, `sudo`, `curl`/`wget`
+  and other network tools, `rm`, `bash -c`/`eval`, and reads of secrets
+  (`.env`, `~/.ssh`, `~/.aws`, `*.pem`/`*.key`). Bypass-permissions mode is
+  disabled outright.
+- **`CLAUDE_EXTRA_ARGS`** is appended to every `claude -p` call; it defaults to
+  `--permission-mode acceptEdits`. Override with `CLAUDE_EXTRA_ARGS=""` to drop
+  it, or set your own flags. It never includes `--dangerously-skip-permissions`.
+
+Net effect: edits and the allowlisted commands run without prompts; anything
+outside the allowlist (or on the deny list) is refused, not silently run. Because
+`curl`/`wget` are denied, the milestone agent verifies the local site with
+Python's standard-library HTTP client rather than `curl`. Personal, machine-local
+overrides go in `.claude/settings.local.json` (gitignored).
+
 ## Project website
 
 ```bash
