@@ -29,7 +29,7 @@
   <p class="lede">A task bundles the evidence a claim will be checked against: paper snippets,
   tables, figure metadata, datasets, code files, and expected outputs. Everything is small,
   synthetic or open, and content-hashed for provenance.</p>
-  <p><span class="status done">status: bundle schema landed in Milestone 1</span> &nbsp; <span class="status planned">loaders + content hashing land in Milestone 2</span></p>
+  <p><span class="status done">status: bundle schema landed in Milestone 1</span> &nbsp; <span class="status done">task loader + content hashing + validation landed in Milestone 2</span></p>
 
   <h2>Bundle components</h2>
   <table>
@@ -44,19 +44,42 @@
   </table>
 
   <h2>Task layout</h2>
-  <p>Tasks are YAML/JSON under <code>tasks/</code>, grouped by family; their fixture files live
-  under <code>data/fixtures/</code>:</p>
+  <p>Tasks are YAML/JSON under <code>tasks/</code>, grouped by family; their file-backed
+  artifacts (datasets, code) live under <code>data/fixtures/</code>. Papers, tables, and gold
+  expectations are inlined in the task file. See <code>docs/ARTIFACT_FORMAT.md</code> for the
+  full task-file reference.</p>
   <pre><code>tasks/
   ml_claims/            bioinformatics_claims/    statistical_claims/
   table_claims/         code_reproduction/
 
 data/fixtures/
-  papers/     datasets/     code/     expected/</code></pre>
+  datasets/     code/</code></pre>
+
+  <h2>Input vs. gold</h2>
+  <p>A task keeps the claim <em>as authored</em> (id, text, type, source) separate from the
+  <strong>gold</strong> record of what the answer should be (the target extraction values,
+  support label, reproduction status, and evidence links). The gold record scores later
+  milestones; it is never fed to them as input, so loading a task cannot leak the answer to the
+  extractor.</p>
+
+  <h2>Committed fixtures</h2>
+  <p>Milestone 2 ships six small, synthetic tasks spanning the families:</p>
+  <table>
+    <tr><th>Task</th><th>Family</th><th>Gold label</th></tr>
+    <tr><td><code>accuracy_improvement</code></td><td>numeric table</td><td>supported</td></tr>
+    <tr><td><code>dataset_mean</code></td><td>dataset statistic</td><td>supported (reproduced)</td></tr>
+    <tr><td><code>synthetic_data_passage</code></td><td>evidence passage</td><td>supported</td></tr>
+    <tr><td><code>underspecified_split</code></td><td>underspecified</td><td>underspecified</td></tr>
+    <tr><td><code>recompute_accuracy</code></td><td>code reproduction</td><td>supported (reproduced)</td></tr>
+    <tr><td><code>gc_content</code></td><td>bioinformatics (toy)</td><td>supported (reproduced)</td></tr>
+  </table>
 
   <h2>Provenance & hashing</h2>
   <p>Each <code>PaperArtifact</code>, <code>DatasetArtifact</code>, and <code>CodeArtifact</code>
   carries a <code>content_hash</code> field (typed in Milestone 1; populated by
-  <code>artifacts/hashing.py</code> in Milestone 2). The hash is recorded in the trace so a
+  <code>artifacts/hashing.py</code> in Milestone 2). The loader hashes datasets and code over
+  their file bytes and inlined papers over a canonical JSON of their passages, producing a
+  deterministic <code>sha256:&lt;hexdigest&gt;</code>. The hash is recorded in the trace so a
   report can state exactly which bytes a verdict was computed against, and a re-run against
   changed artifacts is detectable.</p>
 
@@ -71,10 +94,16 @@ data/fixtures/
   repository <code>.gitignore</code>.</div>
 
   <h2>Validation</h2>
-  <p><code>scripts/01_validate_fixtures.py</code> (Milestone 2) checks that every task references
-  existing artifacts, that expected outputs are present where a check needs them, and that
-  bundles parse against the schema. The milestone runner invokes it as a between-milestone
-  guard once it exists.</p>
+  <p><code>claimverifier validate-fixtures</code> and <code>scripts/01_validate_fixtures.py</code>
+  validate every task under <code>tasks/</code>, accumulating all problems per task.
+  <strong>Errors</strong> (which fail the run) include: a file that does not parse or fails the
+  schema; a duplicate artifact/table/figure/passage ID; a dataset/code path that is absolute,
+  escapes the repository, or is missing; a dataset whose declared <code>columns</code>/<code>n_rows</code>
+  disagree with its CSV; and an evidence link or source passage that resolves to nothing.
+  <strong>Warnings</strong> (which do not) flag fixtures outside <code>data/fixtures/</code>, a
+  filename that does not match its <code>task_id</code>, or a reproducible claim with no expected
+  value. The milestone runner invokes the script as a between-milestone guard. All six committed
+  fixtures currently validate with zero errors and zero warnings.</p>
 </main>
 <footer class="site">scientific-claim-verifier — artifact bundles.</footer>
 </body>

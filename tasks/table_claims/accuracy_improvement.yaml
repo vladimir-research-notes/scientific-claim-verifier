@@ -1,0 +1,71 @@
+# Numeric table claim (task family #1 in docs/PLAN.md §7).
+# A comparison claim checked against a results table: is the "improves from X to
+# Y" story backed by the table cells? Gold outcome: supported.
+task_id: accuracy_improvement
+family: numeric_table
+title: "Accuracy improves from 72.0 to 78.0 over the baseline"
+description: >
+  Method A is claimed to improve accuracy over a baseline on SST-2. The results
+  table lists both methods' accuracy, so the from/to values can be read directly
+  and the comparison checked.
+
+claim:
+  claim_id: c_accuracy_improvement
+  claim_text: "Method A improves accuracy from 72.0 to 78.0 over the baseline on SST-2."
+  claim_type: comparison_claim
+  source_document_id: paper_sst2
+  source_passage: p_results
+
+artifacts:
+  bundle_id: bundle_accuracy_improvement
+  task_id: accuracy_improvement
+  papers:
+    - artifact_id: paper_sst2
+      title: "A small ablation on SST-2"
+      passages:
+        - passage_id: p_setup
+          section: "Setup"
+          text: "We evaluate on SST-2 and report accuracy on the validation split."
+        - passage_id: p_results
+          section: "Results"
+          text: >
+            Method A improves accuracy from 72.0 to 78.0 over the baseline on
+            SST-2, as shown in Table 1.
+  tables:
+    - table_id: t_results
+      caption: "Table 1: accuracy on SST-2 (validation)."
+      columns: [method, accuracy]
+      rows:
+        - [baseline, 72.0]
+        - [A, 78.0]
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: supported
+  reproduction_status: not_applicable
+  failure_mode: none
+  claim:
+    normalized_claim: "accuracy(A) > accuracy(baseline): 72.0 -> 78.0"
+    entities: [Method A, baseline]
+    metrics: [accuracy]
+    datasets: [SST-2]
+    expected_value: 78.0
+    baseline_value: 72.0
+    comparison_operator: ">"
+    units: "%"
+  evidence:
+    - kind: passage
+      target_id: p_results
+      quote: "Method A improves accuracy from 72.0 to 78.0 over the baseline on SST-2"
+    - kind: table
+      target_id: t_results
+      locator: "row=A,col=accuracy"
+    - kind: table
+      target_id: t_results
+      locator: "row=baseline,col=accuracy"
+
+notes: >
+  Both the from-value (baseline, 72.0) and the to-value (A, 78.0) appear in the
+  table, so a table check can confirm the comparison directly.

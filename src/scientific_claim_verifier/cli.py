@@ -2,16 +2,16 @@
 
 Console script entry point: ``claimverifier`` (see ``pyproject.toml``).
 
-Milestone 0 wires up a runnable CLI skeleton with two commands:
+Commands online so far:
 
-- ``claimverifier check-env`` — offline environment self-check.
-- ``claimverifier version``   — print the package version.
+- ``claimverifier check-env``          — offline environment self-check (M0).
+- ``claimverifier version``            — print the package version (M0).
+- ``claimverifier validate-fixtures``  — validate task fixtures (M2).
 
-The verification commands advertised in ``docs/PLAN.md`` section 10
-(``validate-fixtures``, ``extract-claims``, ``verify``, ``run-suite``,
-``report``) come online in their respective milestones. They are deliberately
-not registered yet, so an unimplemented command fails loudly rather than
-pretending to work.
+The remaining verification commands advertised in ``docs/PLAN.md`` section 10
+(``extract-claims``, ``verify``, ``run-suite``, ``report``) come online in their
+respective milestones. They are deliberately not registered yet, so an
+unimplemented command fails loudly rather than pretending to work.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 
 from . import __version__, envcheck
+from .artifacts import validation
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,8 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
             "reproducibility evidence (CPU-only, offline)."
         ),
         epilog=(
-            "Milestone 0 provides `check-env` and `version`; verification "
-            "commands land in later milestones (see docs/PLAN.md)."
+            "Live commands: `check-env`, `version`, `validate-fixtures`; the "
+            "remaining verification commands land in later milestones "
+            "(see docs/PLAN.md)."
         ),
     )
     parser.add_argument(
@@ -50,6 +52,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the scientific-claim-verifier version and exit.",
     )
 
+    validate = subparsers.add_parser(
+        "validate-fixtures",
+        help="Validate task fixtures under a directory (offline).",
+    )
+    validate.add_argument(
+        "tasks_dir",
+        nargs="?",
+        default=validation.DEFAULT_TASKS_DIR,
+        help=f"Directory of task files to validate (default: {validation.DEFAULT_TASKS_DIR}/).",
+    )
+
     return parser
 
 
@@ -63,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "version":
         print(__version__)
         return 0
+    if args.command == "validate-fixtures":
+        return validation.run([args.tasks_dir])
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is
     # a friendly, non-error introduction.

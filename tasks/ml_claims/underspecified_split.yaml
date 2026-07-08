@@ -1,0 +1,67 @@
+# Underspecification (task family #6 in docs/PLAN.md §7).
+# A numeric claim that omits a condition the artifacts show is decisive: accuracy
+# depends on the split, but the claim names no split. Gold outcome: underspecified.
+task_id: underspecified_split
+family: underspecified
+title: "Method reaches 90% accuracy (split omitted)"
+description: >
+  The claim states a single accuracy figure, but the results table reports
+  different accuracies per split (dev 90.0, test 82.0). Because the claim omits
+  which split it refers to, it cannot be cleanly confirmed or contradicted — the
+  correct label is underspecified, not supported.
+
+claim:
+  claim_id: c_underspecified_split
+  claim_text: "The method reaches 90% accuracy."
+  claim_type: numeric_claim
+  source_document_id: paper_splits
+  source_passage: p_headline
+
+artifacts:
+  bundle_id: bundle_underspecified_split
+  task_id: underspecified_split
+  papers:
+    - artifact_id: paper_splits
+      title: "Per-split results"
+      passages:
+        - passage_id: p_headline
+          section: "Abstract"
+          text: "The method reaches 90% accuracy."
+        - passage_id: p_detail
+          section: "Results"
+          text: >
+            Accuracy is 90.0 on the dev split and 82.0 on the test split; the
+            abstract reports the dev figure.
+  tables:
+    - table_id: t_splits
+      caption: "Accuracy by split."
+      columns: [split, accuracy]
+      rows:
+        - [dev, 90.0]
+        - [test, 82.0]
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: underspecified
+  reproduction_status: not_applicable
+  failure_mode: underspecified
+  claim:
+    normalized_claim: "accuracy = 90.0 (split unspecified)"
+    metrics: [accuracy]
+    expected_value: 90.0
+    comparison_operator: "="
+    units: "%"
+  evidence:
+    - kind: passage
+      target_id: p_headline
+      quote: "The method reaches 90% accuracy."
+    - kind: table
+      target_id: t_splits
+      locator: "col=accuracy"
+
+notes: >
+  The 90.0 figure IS present (dev split), so the claim is not contradicted; but
+  the omitted split makes the single-number claim underspecified. This is the
+  distinction the scoring milestone (M7) must draw.

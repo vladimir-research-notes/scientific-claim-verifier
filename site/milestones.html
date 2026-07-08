@@ -30,7 +30,7 @@
   <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
   run, each committed locally with docs and website updated. Guards between milestones require a
   new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
-  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status planned">Milestones 2–13 pending</span></p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status done">M2 complete</span> &nbsp; <span class="status planned">Milestones 3–13 pending</span></p>
 
   <h2>Bootstrap (done)</h2>
   <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
@@ -61,10 +61,17 @@
   <span class="pill ok">25 new tests</span> <span class="pill ok">38 total</span>
   <span class="pill ok">ruff clean</span></p>
 
-  <h3>M2 — Fixture tasks &amp; validation <span class="pill">planned</span></h3>
-  <p>Small committed tasks (numeric table, dataset statistic, evidence passage, code
-  reproduction, underspecified) with synthetic fixtures, plus
-  <code>scripts/01_validate_fixtures.py</code>.</p>
+  <h3>M2 — Fixture tasks &amp; validation <span class="pill ok">done</span></h3>
+  <p>The on-disk <a href="artifact-bundles.html">task format</a> plus the code to load and
+  validate it: a content hasher (<code>sha256:</code> provenance), a task loader with strict
+  input/gold separation (the claim as authored vs. the gold extraction target), and a fixture
+  validator reachable from both <code>claimverifier validate-fixtures</code> and
+  <code>scripts/01_validate_fixtures.py</code>. Six small synthetic tasks span the families
+  (numeric table, dataset statistic, evidence passage, underspecified, code reproduction, and a
+  bioinformatics GC toy), each built on the M1 schema so the fixtures exercise the real contract.
+  Documented in <code>docs/ARTIFACT_FORMAT.md</code>.
+  <span class="pill ok">28 new tests</span> <span class="pill ok">66 total</span>
+  <span class="pill ok">6 fixtures valid</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M3 — Rule-based claim extraction <span class="pill">planned</span></h3>
   <p>Transparent extractors for numeric values, comparison phrases, metric names,

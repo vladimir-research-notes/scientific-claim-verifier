@@ -1,0 +1,64 @@
+# Toy bioinformatics reproduction (in-scope per docs/SAFETY.md).
+# A GC-content claim about a synthetic DNA sequence, checked by executing a tiny
+# script. Demonstrates the code-reproduction channel in the bioinformatics
+# family. Gold outcome: reproduced, supported.
+task_id: gc_content
+family: bioinformatics
+title: "GC content of the synthetic sequence is 0.50"
+description: >
+  GC content is the fraction of bases that are G or C. The claim asserts 0.50 for
+  a short synthetic sequence; a committed script computes it deterministically.
+  This is a toy analysis over synthetic data — not a wet-lab protocol.
+
+claim:
+  claim_id: c_gc_content
+  claim_text: "The synthetic sequence has a GC content of 0.50."
+  claim_type: code_reproduction_claim
+  source_document_id: paper_gc
+  source_passage: p_gc
+
+artifacts:
+  bundle_id: bundle_gc_content
+  task_id: gc_content
+  papers:
+    - artifact_id: paper_gc
+      title: "GC content of a toy sequence"
+      passages:
+        - passage_id: p_gc
+          section: "Sequence analysis"
+          text: >
+            For the synthetic 10-base sequence, 5 of 10 bases are G or C, giving a
+            GC content of 0.50.
+  code_files:
+    - artifact_id: code_gc
+      path: data/fixtures/code/gc_content.py
+      entrypoint: "python gc_content.py"
+      language: python
+      timeout_seconds: 10
+  expected_outputs:
+    stdout_contains: "gc_content=0.50"
+    gc_content: 0.50
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: supported
+  reproduction_status: reproduced
+  failure_mode: none
+  claim:
+    normalized_claim: "gc_content(sequence) = 0.50"
+    metrics: [gc_content]
+    expected_value: 0.50
+    comparison_operator: "~"
+  evidence:
+    - kind: passage
+      target_id: p_gc
+      quote: "5 of 10 bases are G or C, giving a GC content of 0.50"
+    - kind: code
+      target_id: code_gc
+      locator: "stdout"
+
+notes: >
+  A second code-reproduction fixture in a different domain (bioinformatics), to
+  show the channel is not specific to ML metrics.

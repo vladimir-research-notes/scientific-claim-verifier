@@ -1,0 +1,65 @@
+# Code reproduction (task family #4 in docs/PLAN.md §7).
+# A claim about a script's output, checked by executing the tiny script in the
+# controlled fixture sandbox (a later milestone) and comparing to the expected
+# value. Gold outcome: reproduced, supported.
+task_id: recompute_accuracy
+family: code_reproduction
+title: "Running compute_accuracy.py reports accuracy 0.80"
+description: >
+  The claim is that a committed evaluation script prints accuracy 0.80. The
+  script is tiny, self-contained (embedded data, stdlib only, no arguments) and
+  deterministic, so re-running it should reproduce the reported value exactly.
+  This milestone only references and hashes the script; execution lands later.
+
+claim:
+  claim_id: c_recompute_accuracy
+  claim_text: "Running compute_accuracy.py reports an accuracy of 0.80."
+  claim_type: code_reproduction_claim
+  source_document_id: paper_eval
+  source_passage: p_eval
+
+artifacts:
+  bundle_id: bundle_recompute_accuracy
+  task_id: recompute_accuracy
+  papers:
+    - artifact_id: paper_eval
+      title: "Evaluation script"
+      passages:
+        - passage_id: p_eval
+          section: "Evaluation"
+          text: >
+            Running compute_accuracy.py on the toy set reports an accuracy of
+            0.80 (8 of 10 predictions correct).
+  code_files:
+    - artifact_id: code_accuracy
+      path: data/fixtures/code/compute_accuracy.py
+      entrypoint: "python compute_accuracy.py"
+      language: python
+      timeout_seconds: 10
+  expected_outputs:
+    stdout_contains: "accuracy=0.80"
+    accuracy: 0.80
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: supported
+  reproduction_status: reproduced
+  failure_mode: none
+  claim:
+    normalized_claim: "accuracy printed by compute_accuracy.py = 0.80"
+    metrics: [accuracy]
+    expected_value: 0.80
+    comparison_operator: "~"
+  evidence:
+    - kind: passage
+      target_id: p_eval
+      quote: "Running compute_accuracy.py on the toy set reports an accuracy of 0.80"
+    - kind: code
+      target_id: code_accuracy
+      locator: "stdout"
+
+notes: >
+  Execution is deferred to the reproducibility sandbox milestone; here the task
+  only declares the expected stdout and value so the later run can be scored.

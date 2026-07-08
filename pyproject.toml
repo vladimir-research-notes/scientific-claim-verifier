@@ -19,10 +19,12 @@ classifiers = [
   "Intended Audience :: Science/Research",
 ]
 # Runtime dependencies are kept deliberately small. The typed schema (Milestone 1)
-# uses pydantic; data-analysis libraries (numpy/pandas/scipy/matplotlib) are added
-# in the milestones that first need them, per docs/PLAN.md.
+# uses pydantic; task/fixture files (Milestone 2) are YAML, parsed with PyYAML.
+# Data-analysis libraries (numpy/pandas/scipy/matplotlib) are added in the
+# milestones that first need them, per docs/PLAN.md.
 dependencies = [
   "pydantic>=2",
+  "pyyaml>=6",
 ]
 dynamic = ["version"]
 

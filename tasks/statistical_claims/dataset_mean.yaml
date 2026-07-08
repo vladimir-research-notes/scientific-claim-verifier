@@ -1,0 +1,65 @@
+# Dataset statistic claim (task family #2 in docs/PLAN.md §7).
+# A numeric statistic recomputed from a small committed CSV. Gold outcome:
+# supported, and the recomputation reproduces the reported value.
+task_id: dataset_mean
+family: dataset_statistic
+title: "Dataset has 12 samples with a mean value of 3.4"
+description: >
+  A dataset claim asserting both a count (12 samples) and a mean (3.4). The
+  values live in a committed CSV, so count and mean can be recomputed directly.
+  The mean is the primary numeric under check; the count is a stated condition.
+
+claim:
+  claim_id: c_dataset_mean
+  claim_text: "The measurements dataset has 12 samples with a mean value of 3.4."
+  claim_type: dataset_claim
+  source_document_id: paper_measurements
+  source_passage: p_dataset
+
+artifacts:
+  bundle_id: bundle_dataset_mean
+  task_id: dataset_mean
+  papers:
+    - artifact_id: paper_measurements
+      title: "Descriptive statistics of the measurements set"
+      passages:
+        - passage_id: p_dataset
+          section: "Data"
+          text: >
+            The measurements dataset has 12 samples with a mean value of 3.4.
+  datasets:
+    - artifact_id: ds_measurements
+      path: data/fixtures/datasets/measurements.csv
+      description: "12 synthetic scalar measurements (mean 3.4)."
+      columns: [sample_id, value]
+      n_rows: 12
+      license: synthetic
+  expected_outputs:
+    mean: 3.4
+    count: 12
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: supported
+  reproduction_status: reproduced
+  failure_mode: none
+  claim:
+    normalized_claim: "mean(value) = 3.4 over 12 samples"
+    metrics: [mean, count]
+    datasets: [measurements]
+    conditions: ["n = 12"]
+    expected_value: 3.4
+    comparison_operator: "~"
+  evidence:
+    - kind: passage
+      target_id: p_dataset
+      quote: "The measurements dataset has 12 samples with a mean value of 3.4"
+    - kind: dataset
+      target_id: ds_measurements
+      locator: "column=value"
+
+notes: >
+  Recomputing mean(value) over the CSV yields exactly 3.4 (sum 40.8 / 12), so the
+  statistic reproduces within any reasonable tolerance.

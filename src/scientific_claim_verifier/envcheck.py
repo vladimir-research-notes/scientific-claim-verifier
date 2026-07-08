@@ -25,15 +25,15 @@ RECOMMENDED_PYTHON: tuple[int, int] = (3, 12)
 # (import name, purpose). Required libraries must import for the check to pass.
 REQUIRED_LIBS: list[tuple[str, str]] = [
     ("pydantic", "typed data model / schema validation (Milestone 1)"),
+    ("yaml", "task & fixture parsing (Milestone 2)"),
 ]
 
-# Optional libraries are informational at Milestone 0; they arrive with the
+# Optional libraries are informational at this stage; they arrive with the
 # milestones that first need them and must not fail the check when absent.
 OPTIONAL_LIBS: list[tuple[str, str]] = [
     ("numpy", "numeric tolerance / array checks (Milestone 5)"),
     ("pandas", "table & dataset-statistic recomputation (Milestones 5+)"),
     ("scipy", "statistical checks — only if needed (Milestone 5)"),
-    ("yaml", "task & fixture parsing (Milestone 2)"),
     ("matplotlib", "figure recomputation (Milestone 5)"),
 ]
 
