@@ -31,7 +31,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status planned">status: bootstrap complete — Milestone 0 next</span></p>
+  <p><span class="status done">status: Milestone 0 complete — package scaffold &amp; CLI skeleton</span> &nbsp; <span class="status planned">Milestone 1 next: core schemas</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -67,6 +67,17 @@
   -> sandbox     temp dir · timeout · no-network policy · stdout/stderr/exit capture
   -> scoring     support label · reproducibility status · failure mode
   -> report      Markdown (+ optional HTML)  <-  JSONL trace</code></pre>
+
+  <h2>Running it today</h2>
+  <p>Milestone 0 lands a runnable, dependency-light package (<code>scientific_claim_verifier</code>)
+  and the <code>claimverifier</code> console script. Two commands are live now; the verification
+  commands come online with their subsystems.</p>
+  <pre><code>pip install -e .          # editable install (runtime dep: pydantic)
+claimverifier version
+claimverifier check-env   # offline interpreter + library self-check
+python3 -m pytest -q      # CPU-only, offline tests</code></pre>
+  <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
+  the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>
 
   <h2>Constraints</h2>
   <ul>

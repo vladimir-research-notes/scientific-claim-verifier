@@ -16,9 +16,24 @@ is a small but real reproducibility tool and benchmark platform. See
 [`docs/PLAN.md`](docs/PLAN.md) for the full plan and
 [`site/`](site/index.html) for the project website.
 
-> **Build status:** bootstrap (orchestration + contract + website) is in place.
-> The functional system is built milestone by milestone — see below. This README
-> is upgraded to portfolio quality in Milestone 12.
+> **Build status:** Milestone 0 complete — the runnable package scaffold
+> (`scientific_claim_verifier`, the `claimverifier` CLI, and an offline
+> environment self-check) is in place on top of the bootstrap layer. The
+> verification subsystems are built milestone by milestone — see below. This
+> README is upgraded to portfolio quality in Milestone 12.
+
+## Quickstart
+
+```bash
+# Optional: editable install (the only runtime dependency is pydantic)
+pip install -e .
+
+# Offline environment self-check (interpreter + library availability)
+python3 scripts/00_check_environment.py     # or: claimverifier check-env
+
+# CPU-only, offline tests (import the package straight from src/, no install needed)
+python3 -m pytest -q
+```
 
 ## Why not just summarize?
 

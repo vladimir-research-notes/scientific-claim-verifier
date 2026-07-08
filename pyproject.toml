@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scientific-claim-verifier"
+description = "CPU-first, auditable verification of scientific claims against papers, datasets, code, and reproducibility evidence."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "scientific-claim-verifier contributors" }]
+keywords = ["reproducibility", "claim-verification", "benchmark", "auditability", "science"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering",
+  "Intended Audience :: Science/Research",
+]
+# Runtime dependencies are kept deliberately small. The typed schema (Milestone 1)
+# uses pydantic; data-analysis libraries (numpy/pandas/scipy/matplotlib) are added
+# in the milestones that first need them, per docs/PLAN.md.
+dependencies = [
+  "pydantic>=2",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+claimverifier = "scientific_claim_verifier.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/"
+Documentation = "https://github.com/"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "scientific_claim_verifier.__version__" }
+
+[tool.pytest.ini_options]
+# Run tests against the src/ package without requiring an editable install.
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]

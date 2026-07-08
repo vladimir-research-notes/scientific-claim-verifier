@@ -30,7 +30,7 @@
   <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
   run, each committed locally with docs and website updated. Guards between milestones require a
   new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
-  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status planned">Milestones 0–13 pending</span></p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status planned">Milestones 1–13 pending</span></p>
 
   <h2>Bootstrap (done)</h2>
   <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
@@ -39,11 +39,14 @@
 
   <h2>Build milestones</h2>
 
-  <h3>M0 — Scaffold &amp; project contract <span class="pill">planned</span></h3>
+  <h3>M0 — Scaffold &amp; project contract <span class="pill ok">done</span></h3>
   <p>Python package skeleton (<code>pyproject.toml</code>, <code>src/scientific_claim_verifier/</code>
   with <code>__init__</code>, <code>cli</code>, a <code>schemas</code> stub), console script
-  <code>claimverifier</code>, <code>scripts/00_check_environment.py</code>, and the first
-  CPU-only tests. Establishes a runnable, dependency-light baseline.</p>
+  <code>claimverifier</code>, an offline environment self-check
+  (<code>scripts/00_check_environment.py</code> / <code>claimverifier check-env</code>), and the
+  first CPU-only tests. Establishes a runnable, dependency-light baseline: the sole runtime
+  dependency is <code>pydantic</code>; data-analysis libraries arrive with the milestones that
+  use them. <span class="pill ok">13 tests</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M1 — Core schemas <span class="pill">planned</span></h3>
   <p>Typed <code>pydantic</code> models: <code>ScientificClaim</code>, <code>ArtifactBundle</code>,
