@@ -10,7 +10,7 @@ that do not exist yet are marked pending, not estimated.
 | --- | --- | --- |
 | Fixture validation | M2 | 6/6 tasks valid |
 | Claim extraction vs. gold | M3 | measured below |
-| Evidence linking | M4 | pending |
+| Evidence linking vs. gold | M4 | measured below |
 | Verification checks | M5 | pending |
 | Sandbox reproduction | M6 | pending |
 | Support labels / failure modes | M7 | pending |
@@ -97,7 +97,7 @@ datasets        : SST-2
 entities        : Method A, baseline
 conditions      : —
 
-References (explicit in text; scored linking is M4):
+References (explicit in text; scored linking: link-evidence):
   - dataset: 'SST-2' -> unresolved
 
 Rules fired:
@@ -116,10 +116,92 @@ produced it. Note `SST-2` resolves to no artifact — the bundle for this task h
 no dataset file, only a table — so the reference is honestly recorded as
 `unresolved` rather than silently dropped.
 
+## M4 — evidence linking
+
+```bash
+python3 -m pytest tests/test_linking.py -q                      # 69 tests
+claimverifier link-evidence --task <task.yaml> --no-declared-source
+```
+
+Emitted `EvidenceLink`s scored against each task's gold `expected.evidence`,
+**blind** — that is, ignoring the task's declared `claim.source_passage`, which is
+asserted provenance rather than something the linker discovers. Keys are compared
+strictly, on `(kind, target_id, locator)`: the linker must find the right cell or
+column, not merely the right table. `quote` is not compared (see
+`docs/EVIDENCE_LINKING.md`).
+
+| Task | Gold links | Recovered | Spurious |
+| --- | --- | --- | --- |
+| `accuracy_improvement` | 3 | 3 | 0 |
+| `dataset_mean` | 2 | 2 | 0 |
+| `gc_content` | 2 | 2 | 0 |
+| `recompute_accuracy` | 2 | 2 | 0 |
+| `synthetic_data_passage` | 1 | 1 | 0 |
+| `underspecified_split` | 2 | 2 | 0 |
+| **total** | **12** | **12** | **0** |
+
+Strict precision 1.00, recall 1.00, F1 1.00. Honouring the declared
+`source_passage` gives the same 12/12 — it changes the passage link's *method*,
+not its target.
+
+### How to read this
+
+**A consistency check, not a benchmark.** The locator conventions and the table
+row rule were written with the two committed table fixtures in view. A 12/12 means
+*"the linker reproduces the hand-authored provenance exactly, and invents
+nothing"* — a real property, and the one M5 depends on. It does not mean retrieval
+is solved.
+
+The informative numbers are the passage overlap scores, since passages are the one
+channel where the answer is not forced by an identifier:
+
+| Task | Best passage | Overlap | Runner-up | Overlap |
+| --- | --- | --- | --- | --- |
+| `synthetic_data_passage` | `p_data` | **0.211** | `p_hardware` | **0.000** |
+| `accuracy_improvement` | `p_results` | 0.824 (also verbatim) | `p_setup` | 0.308 |
+| `underspecified_split` | `p_headline` | 1.000 (verbatim) | `p_detail` | 0.154 |
+
+`synthetic_data_passage` is the **only** fixture where keyword overlap is
+load-bearing: the claim *"The model is trained only on synthetic data"* appears
+nowhere verbatim, so the linker must separate the passage that paraphrases it
+(0.211, on the two shared tokens `synthetic` and `data`) from a distractor about
+compute hardware (0.000). It does. But 0.211 is a low absolute score, and the
+margin comes from the distractor being *completely* unrelated. A harder distractor
+sharing vocabulary without asserting the claim would not be separated by a
+bag-of-words baseline — which has no model of negation, morphology, or synonymy.
+That is why `evidence_presence` is a separate check (M5).
+
+### Worked example
+
+```
+$ claimverifier link-evidence --task tasks/ml_claims/underspecified_split.yaml --no-declared-source
+(abridged)
+
+Claim           : c_underspecified_split (numeric_claim)
+Text            : The method reaches 90% accuracy.
+
+Ranked passage candidates (retrieval, not support):
+  -> 1. p_headline [Abstract] score=1.000 overlap=1.000 (exact_text)
+     2. p_detail [Results] score=0.154 overlap=0.154 (token_overlap)
+
+Evidence links:
+  - passage: p_headline score=1  (match=exact_text; overlap=1.000; rank=1)
+  - table: t_splits [col=accuracy] score=1  (match=table_column)
+
+Gold comparison : strict 2/2 gold links recovered, 0 spurious (P=1.00 R=1.00)
+```
+
+The table link is the point. The value 90.0 matches exactly one cell (`dev`), so a
+cell locator was available — but the claim never says "dev", and emitting
+`row=dev,col=accuracy` would have buried the underspecification inside a
+confident-looking locator. The linker emits `col=accuracy` instead, leaving the
+claim visibly ambiguous over the column. That ambiguity is the signal M7 needs to
+label the claim `underspecified` rather than `supported`.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 102 passed
+python3 -m pytest -q     # 171 passed
 ruff check .             # all checks passed
 ```
 
@@ -129,6 +211,7 @@ ruff check .             # all checks passed
 | M1 | 25 | 38 |
 | M2 | 28 | 66 |
 | M3 | 36 | 102 |
+| M4 | 69 | 171 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
 used anywhere in the default path.

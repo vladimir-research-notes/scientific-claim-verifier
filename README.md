@@ -77,7 +77,15 @@ claimverifier check-env
 claimverifier version
 claimverifier validate-fixtures tasks/
 claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml --out results/runs/
+claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml --no-declared-source
 ```
+
+`link-evidence` reports the ranked passage candidates, the emitted evidence links
+with their locators (`row=A,col=accuracy`, `column=value`, `stdout`), and the rule
+behind each. `--no-declared-source` ignores the task's authored
+`claim.source_passage` and links passages blind — the setting under which
+retrieval is actually worth measuring. See
+[`docs/EVIDENCE_LINKING.md`](docs/EVIDENCE_LINKING.md).
 
 Target (each lands with its subsystem — see the milestones):
 

@@ -145,8 +145,12 @@ resolved against the bundle where possible:
   number → id map).
 
 These carry **no relevance score**. Searching the bundle for the passage that best
-*supports* a claim, with a score, is the evidence linker's job (**Milestone 4**);
-the extracted claim's `evidence_links` is left empty here.
+*supports* a claim, with a score, is the evidence linker's job (**Milestone 4**, see
+[`docs/EVIDENCE_LINKING.md`](EVIDENCE_LINKING.md)); the extracted claim's
+`evidence_links` is left empty here. The linker reuses two of this module's
+functions — `extract_metrics` (so a table header and a claim metric canonicalize
+identically) and `resolve_dataset_reference` (so a dataset mention resolves the
+same way wherever it is seen).
 
 ## `normalized_claim`
 
@@ -220,5 +224,7 @@ tests pin each rule on crafted inputs; integration tests run the extractor over
 every committed fixture and score it against gold, including an explicit test that
 the one condition miss is the documented semantic one.
 
-Next: **M4 — evidence linker** (exact passage lookup, keyword-overlap baseline,
-table/dataset ID matching, scored provenance records).
+The extractor's output feeds the evidence linker
+([`docs/EVIDENCE_LINKING.md`](EVIDENCE_LINKING.md), Milestone 4), which uses the
+recovered `metrics`, `entities`, `expected_value`, and `baseline_value` to locate
+the exact table cells, dataset columns, and code artifacts a claim points at.

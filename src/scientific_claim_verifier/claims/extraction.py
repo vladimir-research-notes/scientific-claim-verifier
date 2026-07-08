@@ -388,7 +388,7 @@ def extract_references(text: str, bundle: ArtifactBundle) -> list[ArtifactRefere
         refs.append(ArtifactReference(EvidenceKind.CODE, mention=mention, target_id=target))
 
     for name in extract_datasets(text):
-        target = _resolve_dataset(name, bundle)
+        target = resolve_dataset_reference(name, bundle)
         refs.append(ArtifactReference(EvidenceKind.DATASET, mention=name, target_id=target))
 
     for m in _TABLE_FIG_RE.finditer(text):
@@ -398,8 +398,14 @@ def extract_references(text: str, bundle: ArtifactBundle) -> list[ArtifactRefere
     return refs
 
 
-def _resolve_dataset(name: str, bundle: ArtifactBundle) -> str | None:
-    """Resolve a dataset name to a dataset artifact id via id/description match."""
+def resolve_dataset_reference(name: str, bundle: ArtifactBundle) -> str | None:
+    """Resolve a dataset name to a dataset artifact id via id/description match.
+
+    A substring match against ``"<artifact_id> <description>"``, so ``measurements``
+    resolves to ``ds_measurements``. Shared with the evidence linker (Milestone 4)
+    so a dataset mention resolves identically wherever it is seen. **Limitation:**
+    a short name could match an unrelated description; the match is not anchored.
+    """
     needle = name.lower()
     for ds in bundle.datasets:
         haystack = f"{ds.artifact_id} {ds.description or ''}".lower()
@@ -628,7 +634,7 @@ def render_extraction(
 
     if extraction.references:
         lines.append("")
-        lines.append("References (explicit in text; scored linking is M4):")
+        lines.append("References (explicit in text; scored linking: link-evidence):")
         for ref in extraction.references:
             target = ref.target_id or "unresolved"
             lines.append(f"  - {ref.kind.value}: {ref.mention!r} -> {target}")
@@ -740,6 +746,7 @@ __all__ = [
     "detect_operator",
     "extract_units",
     "extract_references",
+    "resolve_dataset_reference",
     "score_extraction",
     "aggregate_scores",
     "extraction_to_dict",

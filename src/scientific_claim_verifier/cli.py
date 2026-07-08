@@ -8,6 +8,11 @@ Commands online so far:
 - ``claimverifier version``            — print the package version (M0).
 - ``claimverifier validate-fixtures``  — validate task fixtures (M2).
 - ``claimverifier extract-claims``     — rule-based claim extraction (M3).
+- ``claimverifier link-evidence``      — evidence linking (M4).
+
+``link-evidence`` is an addition beyond the ``docs/PLAN.md`` section 10 contract:
+that section lists the end-to-end verbs, but a per-stage command keeps each
+subsystem independently runnable and auditable.
 
 The remaining verification commands advertised in ``docs/PLAN.md`` section 10
 (``verify``, ``run-suite``, ``report``) come online in their respective
@@ -21,7 +26,7 @@ import argparse
 
 from . import __version__, envcheck
 from .artifacts import validation
-from .claims import extraction
+from .claims import extraction, linking
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,9 +38,9 @@ def build_parser() -> argparse.ArgumentParser:
             "reproducibility evidence (CPU-only, offline)."
         ),
         epilog=(
-            "Live commands: `check-env`, `version`, `validate-fixtures`; the "
-            "remaining verification commands land in later milestones "
-            "(see docs/PLAN.md)."
+            "Live commands: `check-env`, `version`, `validate-fixtures`, "
+            "`extract-claims`, `link-evidence`; the remaining verification "
+            "commands land in later milestones (see docs/PLAN.md)."
         ),
     )
     parser.add_argument(
@@ -71,6 +76,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     extraction.add_extract_arguments(extract)
 
+    link = subparsers.add_parser(
+        "link-evidence",
+        help="Link a task's claim to its supporting evidence (offline).",
+    )
+    linking.add_link_arguments(link)
+
     return parser
 
 
@@ -88,6 +99,13 @@ def main(argv: list[str] | None = None) -> int:
         return validation.run([args.tasks_dir])
     if args.command == "extract-claims":
         return extraction.extract_and_report(args.task, out_dir=args.out, as_json=args.json)
+    if args.command == "link-evidence":
+        return linking.link_and_report(
+            args.task,
+            out_dir=args.out,
+            as_json=args.json,
+            use_declared_source=not args.no_declared_source,
+        )
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is
     # a friendly, non-error introduction.

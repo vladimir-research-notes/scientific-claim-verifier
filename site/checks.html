@@ -29,7 +29,37 @@
   <p class="lede">Checks are deterministic and transparent. Each takes a claim plus its linked
   artifacts and emits a <code>VerificationCheck</code> record with inputs, computed value,
   expected value, tolerance, pass/fail, and notes.</p>
-  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status planned">check logic lands in Milestone 5; sandbox in Milestone 6</span></p>
+  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status done">evidence linking live in Milestone 4</span> &nbsp; <span class="status planned">check logic lands in Milestone 5; sandbox in Milestone 6</span></p>
+
+  <h2>Before a check runs: evidence linking</h2>
+  <p>A check cannot run until something has said <em>where to look</em>. That is the evidence
+  linker (Milestone 4): it takes the extracted claim and the artifact bundle and emits scored
+  <code>EvidenceLink</code> records, each with a <strong>locator</strong> precise enough for a
+  check to read the value back.</p>
+  <table>
+    <tr><th>Channel</th><th>How it resolves</th><th>Locator</th></tr>
+    <tr><td>Passage</td><td>Exact verbatim lookup, then a Dice keyword-overlap baseline over every passage.</td><td>—</td></tr>
+    <tr><td>Table</td><td>A column denoting a claim metric; a cell when the claim <em>names the row</em>.</td><td><code>row=A,col=accuracy</code> · <code>col=accuracy</code></td></tr>
+    <tr><td>Dataset</td><td>Name resolution, then the sole non-identifier column (or the metric-named one).</td><td><code>column=value</code></td></tr>
+    <tr><td>Code</td><td>A <code>.py</code> filename in the claim, else the bundle's sole script.</td><td><code>stdout</code></td></tr>
+    <tr><td>Figure</td><td>The data series named after a claim metric.</td><td><code>series=accuracy</code></td></tr>
+  </table>
+
+  <div class="callout"><strong>A link retrieves evidence; it does not judge it.</strong> A passage
+  can be linked with a high score and <em>contradict</em> the claim. A table column is linked
+  <em>precisely because</em> no cell matched the claimed value — otherwise a
+  <code>contradicted</code> verdict could never be reached. And a cell is linked only when the
+  claim names its row: given "the method reaches 90% accuracy" against a table of
+  <code>dev 90.0</code> / <code>test 82.0</code>, the linker emits <code>col=accuracy</code>, not
+  <code>row=dev</code>, so the underspecification stays visible instead of hiding inside a
+  confident-looking locator. Deciding whether linked evidence <em>asserts</em> a claim is the
+  <code>evidence_presence</code> check below.</div>
+
+  <p>The keyword baseline is bag-of-words: it has no model of negation, morphology, or synonymy,
+  so <em>"the model is <strong>not</strong> trained on synthetic data"</em> scores identically to
+  the assertion. That limitation is documented, tested, and is exactly why retrieval and judgement
+  are separate stages. See <code>docs/EVIDENCE_LINKING.md</code> and
+  <a href="results.html">Results</a>.</p>
 
   <h2>The checks</h2>
   <table>

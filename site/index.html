@@ -31,7 +31,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 3 complete — rule-based claim extraction</span> &nbsp; <span class="status planned">Milestone 4 next: evidence linker</span></p>
+  <p><span class="status done">status: Milestone 4 complete — evidence linker</span> &nbsp; <span class="status planned">Milestone 5 next: verification checks</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -71,13 +71,14 @@
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). Four commands are live now; the remaining verification commands come
+  <code>pyyaml</code>). Five commands are live now; the remaining verification commands come
   online with their subsystems.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
 claimverifier check-env          # offline interpreter + library self-check
 claimverifier validate-fixtures  # validate task fixtures under tasks/
 claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml
+claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
   <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
   the task's gold target — the audit trail is the product, not a side effect:</p>
@@ -92,6 +93,19 @@ Rules fired:
   - units: %
 
 Gold comparison : 8/8 scored fields match</code></pre>
+  <p>Linking then says <em>where the evidence is</em> — every candidate passage is ranked and
+  kept, and each emitted link names the rule that produced it and a locator precise enough for
+  a check to read the value back:</p>
+  <pre><code>Ranked passage candidates (retrieval, not support):
+  -&gt; 1. p_results [Results] score=1.000 overlap=0.824 (exact_text)
+     2. p_setup [Setup]     score=0.308 overlap=0.308 (token_overlap)
+
+Evidence links:
+  - passage: p_results  score=1  (match=exact_text; overlap=0.824; rank=1)
+  - table: t_results [row=A,col=accuracy]         (match=table_cell; value=78)
+  - table: t_results [row=baseline,col=accuracy]  (match=table_cell; value=72)
+
+Gold comparison : strict 3/3 gold links recovered, 0 spurious (P=1.00 R=1.00)</code></pre>
   <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
   the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>
 

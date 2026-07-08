@@ -29,7 +29,49 @@
   <p class="lede">This page reports measured outcomes. Every number is reproducible offline on a
   single CPU with the command shown beside it. Numbers that do not exist yet are marked pending,
   never estimated.</p>
-  <p><span class="status done">status: Milestone 3 extraction measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+  <p><span class="status done">status: Milestones 3–4 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+
+  <h2>Evidence linking vs. gold (Milestone 4)</h2>
+  <pre><code>python3 -m pytest tests/test_linking.py -q                      # 69 tests
+claimverifier link-evidence --task &lt;task.yaml&gt; --no-declared-source</code></pre>
+  <p>Emitted <code>EvidenceLink</code>s scored against each task's gold
+  <code>expected.evidence</code>, <strong>blind</strong> — ignoring the task's declared
+  <code>claim.source_passage</code>, which is asserted provenance rather than something the
+  linker discovers. Keys compare strictly, on <code>(kind, target_id, locator)</code>: the linker
+  must find the right cell or column, not merely the right table.</p>
+
+  <table>
+    <tr><th>Task</th><th>Gold links</th><th>Recovered</th><th>Spurious</th></tr>
+    <tr><td><code>accuracy_improvement</code></td><td>3</td><td>3</td><td>0</td></tr>
+    <tr><td><code>dataset_mean</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><code>gc_content</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><code>recompute_accuracy</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><code>synthetic_data_passage</code></td><td>1</td><td>1</td><td>0</td></tr>
+    <tr><td><code>underspecified_split</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><strong>total</strong></td><td><strong>12</strong></td><td><strong>12</strong></td><td><strong>0</strong></td></tr>
+  </table>
+  <p>Strict precision 1.00, recall 1.00. Honouring the declared <code>source_passage</code> gives
+  the same 12/12 — it changes the passage link's <em>method</em>, not its target.</p>
+
+  <p>Passage overlap scores, the one channel whose outcome is not forced by an identifier:</p>
+  <table>
+    <tr><th>Task</th><th>Best passage</th><th>Overlap</th><th>Runner-up</th><th>Overlap</th></tr>
+    <tr><td><code>synthetic_data_passage</code></td><td><code>p_data</code></td><td><strong>0.211</strong></td><td><code>p_hardware</code></td><td><strong>0.000</strong></td></tr>
+    <tr><td><code>accuracy_improvement</code></td><td><code>p_results</code></td><td>0.824 (verbatim)</td><td><code>p_setup</code></td><td>0.308</td></tr>
+    <tr><td><code>underspecified_split</code></td><td><code>p_headline</code></td><td>1.000 (verbatim)</td><td><code>p_detail</code></td><td>0.154</td></tr>
+  </table>
+
+  <div class="callout"><strong>How to read this.</strong> A <em>consistency check, not a
+  benchmark</em>. The locator conventions and the table row rule were written with the two
+  committed table fixtures in view. 12/12 means "the linker reproduces the hand-authored
+  provenance exactly, and invents nothing" — a real property, and the one Milestone 5 depends on
+  — not that retrieval is solved. <strong><code>synthetic_data_passage</code> is the only fixture
+  where keyword overlap is load-bearing</strong>: the claim appears nowhere verbatim, so the
+  linker must separate a paraphrasing passage (0.211, on the two shared tokens
+  <code>synthetic</code> and <code>data</code>) from a compute-hardware distractor (0.000). It
+  does — but 0.211 is a low absolute score, and the margin exists only because the distractor
+  shares no vocabulary at all. A harder distractor would not be separated by a bag-of-words
+  baseline.</div>
 
   <h2>Claim extraction vs. gold (Milestone 3)</h2>
   <pre><code>python3 -m pytest tests/test_extraction.py -q     # 36 tests
@@ -82,6 +124,7 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td>M1</td><td>25</td><td>38</td></tr>
     <tr><td>M2</td><td>28</td><td>66</td></tr>
     <tr><td>M3</td><td>36</td><td>102</td></tr>
+    <tr><td>M4</td><td>69</td><td>171</td></tr>
   </table>
   <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
   anywhere in the default path. <code>ruff check .</code> passes.</p>
