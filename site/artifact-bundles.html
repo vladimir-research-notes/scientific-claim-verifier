@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Artifact bundles — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Artifact bundles — how papers, datasets, and code are packaged for verification.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html" class="active">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Artifact bundles</h1>
+  <p class="lede">A task bundles the evidence a claim will be checked against: paper snippets,
+  tables, figure metadata, datasets, code files, and expected outputs. Everything is small,
+  synthetic or open, and content-hashed for provenance.</p>
+  <p><span class="status planned">status: planned — loaders and hashing land in Milestones 1–2</span></p>
+
+  <h2>Bundle components</h2>
+  <table>
+    <tr><th>Component</th><th>Contents</th></tr>
+    <tr><td><code>paper_text_or_snippets</code></td><td>Passages with stable IDs; the text the claim is drawn from.</td></tr>
+    <tr><td><code>tables</code></td><td>Structured tables (rows/columns) referenced by table/figure claims.</td></tr>
+    <tr><td><code>figures_metadata</code></td><td>Figure descriptors and the data series behind them (not pixels).</td></tr>
+    <tr><td><code>datasets</code></td><td>Small CSVs for statistic recomputation.</td></tr>
+    <tr><td><code>code_files</code></td><td>Tiny Python scripts computing a reported metric.</td></tr>
+    <tr><td><code>expected_outputs</code></td><td>Ground-truth values for scoring reproduction.</td></tr>
+    <tr><td><code>metadata</code></td><td>Task ID, provenance, licence, and notes.</td></tr>
+  </table>
+
+  <h2>Task layout</h2>
+  <p>Tasks are YAML/JSON under <code>tasks/</code>, grouped by family; their fixture files live
+  under <code>data/fixtures/</code>:</p>
+  <pre><code>tasks/
+  ml_claims/            bioinformatics_claims/    statistical_claims/
+  table_claims/         code_reproduction/
+
+data/fixtures/
+  papers/     datasets/     code/     expected/</code></pre>
+
+  <h2>Provenance & hashing</h2>
+  <p>Each <code>PaperArtifact</code>, <code>DatasetArtifact</code>, and <code>CodeArtifact</code>
+  is content-hashed (<code>artifacts/hashing.py</code>). The hash is recorded in the trace so a
+  report can state exactly which bytes a verdict was computed against, and a re-run against
+  changed artifacts is detectable.</p>
+
+  <div class="callout">Fixture rules: small, synthetic or open, committed. No private/real
+  papers, no large datasets, no model weights. See <a href="safety.html">Safety</a> and the
+  repository <code>.gitignore</code>.</div>
+
+  <h2>Validation</h2>
+  <p><code>scripts/01_validate_fixtures.py</code> (Milestone 2) checks that every task references
+  existing artifacts, that expected outputs are present where a check needs them, and that
+  bundles parse against the schema. The milestone runner invokes it as a between-milestone
+  guard once it exists.</p>
+</main>
+<footer class="site">scientific-claim-verifier — artifact bundles.</footer>
+</body>
+</html>

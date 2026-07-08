@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claim schema — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Claim schema — the typed representation of a scientific claim.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html" class="active">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Claim schema</h1>
+  <p class="lede">A claim is not free text to be summarized — it is a typed object with explicit,
+  checkable fields. This lets checks target specific values and lets the report separate the
+  claim from the evidence and the inference.</p>
+  <p><span class="status planned">status: planned — typed <code>pydantic</code> models land in Milestone 1</span></p>
+
+  <h2>ScientificClaim fields</h2>
+  <table>
+    <tr><th>Field</th><th>Meaning</th></tr>
+    <tr><td><code>claim_id</code></td><td>Stable identifier within a task.</td></tr>
+    <tr><td><code>claim_text</code></td><td>The claim as written.</td></tr>
+    <tr><td><code>normalized_claim</code></td><td>Canonicalized form used for matching.</td></tr>
+    <tr><td><code>source_document_id</code></td><td>Which paper artifact the claim comes from.</td></tr>
+    <tr><td><code>source_passage</code></td><td>Passage ID or span asserting the claim.</td></tr>
+    <tr><td><code>claim_type</code></td><td>One of the claim types below.</td></tr>
+    <tr><td><code>entities</code></td><td>Methods, models, or objects referenced.</td></tr>
+    <tr><td><code>metrics</code></td><td>Named metrics (accuracy, F1, mean, count, …).</td></tr>
+    <tr><td><code>datasets</code></td><td>Referenced dataset IDs.</td></tr>
+    <tr><td><code>conditions</code></td><td>Stated conditions/qualifiers (split, seed, subset).</td></tr>
+    <tr><td><code>expected_value</code></td><td>The asserted numeric value or range.</td></tr>
+    <tr><td><code>comparison_operator</code></td><td><code>=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>~</code> (approx).</td></tr>
+    <tr><td><code>evidence_links</code></td><td>Links to passages, tables, datasets, or code refs.</td></tr>
+  </table>
+
+  <h2>Claim types</h2>
+  <table>
+    <tr><th>Type</th><th>Example</th><th>Primary check</th></tr>
+    <tr><td><code>descriptive_claim</code></td><td>"The method is trained on synthetic data."</td><td>evidence presence</td></tr>
+    <tr><td><code>numeric_claim</code></td><td>"Accuracy is 78%."</td><td>numeric tolerance</td></tr>
+    <tr><td><code>comparison_claim</code></td><td>"A improves accuracy from 72% to 78%."</td><td>comparison</td></tr>
+    <tr><td><code>table_claim</code></td><td>"Row B, column F1 is 0.81."</td><td>table recompute / lookup</td></tr>
+    <tr><td><code>figure_claim</code></td><td>"The bar for group C is highest."</td><td>figure/table recompute</td></tr>
+    <tr><td><code>dataset_claim</code></td><td>"The dataset has 120 samples, mean 3.4."</td><td>dataset statistic recompute</td></tr>
+    <tr><td><code>code_reproduction_claim</code></td><td>"Running eval.py yields 0.78."</td><td>code execution</td></tr>
+    <tr><td><code>unsupported_or_contextual_claim</code></td><td>"This is the best approach in the literature."</td><td>flagged as unverifiable / contextual</td></tr>
+  </table>
+
+  <div class="callout">The canonical, field-by-field definition will live in
+  <code>docs/CLAIM_SCHEMA.md</code>, generated alongside the <code>pydantic</code> models so the
+  docs and the code cannot drift.</div>
+
+  <h2>Design intent</h2>
+  <ul>
+    <li>Every field a check needs is explicit — no re-parsing the claim text at check time.</li>
+    <li>Extraction may be heuristic; the schema is where heuristics are made auditable.</li>
+    <li>An <code>unsupported_or_contextual_claim</code> is a first-class outcome, not an error.</li>
+  </ul>
+</main>
+<footer class="site">scientific-claim-verifier — claim schema.</footer>
+</body>
+</html>

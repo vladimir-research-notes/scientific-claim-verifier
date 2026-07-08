@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roadmap — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Roadmap — integration contracts and honest future directions.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html" class="active">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Roadmap</h1>
+  <p class="lede">Directions beyond the initial milestones — deliberately modest and honest.
+  Nothing here requires paid APIs or GPUs.</p>
+
+  <h2>Integration contracts (Milestone 11)</h2>
+  <p>Rather than depending on sibling projects, this repo defines compatible import/export
+  formats so it can plug into them later:</p>
+  <div class="grid">
+    <div class="card"><h3>code-agent runtime</h3><p>Consume a verification task as a runnable task; export traces in a compatible JSONL shape.</p></div>
+    <div class="card"><h3>BioScientist OS</h3><p>Accept artifact bundles and emit verification results as structured evidence records.</p></div>
+    <div class="card"><h3>BioAgentBench</h3><p>Expose the smoke suite as a benchmark with per-task scoring compatible with a harness.</p></div>
+    <div class="card"><h3>LLM regression / observability</h3><p>Emit per-run metrics and labels for regression comparison across versions.</p></div>
+    <div class="card"><h3>agent-control-bench</h3><p>Provide claim-verification episodes as controllable, replayable units.</p></div>
+  </div>
+
+  <h2>Method directions</h2>
+  <ul>
+    <li>Stronger, still-transparent extraction (grammar/pattern libraries) with the rule-based
+      baseline kept as the interpretable floor.</li>
+    <li>More check types: distributional comparisons, seed-sensitivity checks, and simple
+      figure-value extraction from committed series.</li>
+    <li>Richer failure-mode taxonomy driven by what the smoke suite actually surfaces.</li>
+    <li>Optional, cost-guarded LLM adapters for extraction assistance — with the rule-based
+      path always available and always the default.</li>
+  </ul>
+
+  <h2>What will stay out</h2>
+  <p>The safety boundaries are permanent: no clinical/medical advice, no wet-lab protocols, no
+  dual-use biology, no real patient data, and no claim to be a production untrusted-code
+  sandbox. See <a href="safety.html">Safety</a> and <a href="limitations.html">Limitations</a>.</p>
+
+  <div class="callout">The detailed, honest research path will be maintained in
+  <code>docs/PAPER_PATH.md</code>.</div>
+</main>
+<footer class="site">scientific-claim-verifier — roadmap.</footer>
+</body>
+</html>

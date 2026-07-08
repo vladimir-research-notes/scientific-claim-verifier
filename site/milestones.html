@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Milestones — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Milestones — the full build plan, one milestone at a time.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html" class="active">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Milestones</h1>
+  <p class="lede">The system is built incrementally by an autonomous Claude Code agent driven by
+  <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
+  run, each committed locally with docs and website updated. Guards between milestones require a
+  new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status planned">Milestones 0–13 pending</span></p>
+
+  <h2>Bootstrap (done)</h2>
+  <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
+  <code>docs/PLAN.md</code>, the milestone prompt template, the milestone runner, and the
+  serve-site script. Establishes the project contract before any milestone runs.</p>
+
+  <h2>Build milestones</h2>
+
+  <h3>M0 — Scaffold &amp; project contract <span class="pill">planned</span></h3>
+  <p>Python package skeleton (<code>pyproject.toml</code>, <code>src/scientific_claim_verifier/</code>
+  with <code>__init__</code>, <code>cli</code>, a <code>schemas</code> stub), console script
+  <code>claimverifier</code>, <code>scripts/00_check_environment.py</code>, and the first
+  CPU-only tests. Establishes a runnable, dependency-light baseline.</p>
+
+  <h3>M1 — Core schemas <span class="pill">planned</span></h3>
+  <p>Typed <code>pydantic</code> models: <code>ScientificClaim</code>, <code>ArtifactBundle</code>,
+  <code>PaperArtifact</code>, <code>DatasetArtifact</code>, <code>CodeArtifact</code>,
+  <code>EvidenceLink</code>, <code>VerificationCheck</code>, <code>VerificationResult</code>,
+  <code>ReproductionStatus</code>, <code>SupportLabel</code>, <code>FailureMode</code>,
+  <code>RunTrace</code>, <code>BenchmarkSuite</code>, with unit tests.</p>
+
+  <h3>M2 — Fixture tasks &amp; validation <span class="pill">planned</span></h3>
+  <p>Small committed tasks (numeric table, dataset statistic, evidence passage, code
+  reproduction, underspecified) with synthetic fixtures, plus
+  <code>scripts/01_validate_fixtures.py</code>.</p>
+
+  <h3>M3 — Rule-based claim extraction <span class="pill">planned</span></h3>
+  <p>Transparent extractors for numeric values, comparison phrases, metric names,
+  dataset/table references, and passage IDs — a clearly-labelled heuristic baseline, tested
+  against expected extracted claims.</p>
+
+  <h3>M4 — Evidence linker <span class="pill">planned</span></h3>
+  <p>Exact passage lookup, a keyword-overlap baseline, table/dataset ID matching, and
+  provenance records linking claims to the exact evidence.</p>
+
+  <h3>M5 — Verification checks <span class="pill">planned</span></h3>
+  <p>Deterministic checks: table value, dataset statistic recomputation, numeric tolerance,
+  comparison, evidence presence, and code execution for tiny scripts.</p>
+
+  <h3>M6 — Reproducibility sandbox <span class="pill">planned</span></h3>
+  <p>Controlled execution for fixture code: temp dir, timeout, stdout/stderr/exit capture,
+  no-network policy, and a trace record. Tests use harmless fixture scripts. Not an untrusted
+  sandbox — see <a href="limitations.html">Limitations</a>.</p>
+
+  <h3>M7 — Scoring &amp; failure modes <span class="pill">planned</span></h3>
+  <p>Support-label assignment, reproducibility-status assignment, failure-mode classification,
+  aggregate summary, and per-claim result objects.</p>
+
+  <h3>M8 — Smoke suite <span class="pill">planned</span></h3>
+  <p>8–15 verification tasks run fully offline; saved run traces, results, a summary CSV/JSON,
+  and generated reports. Drives the <a href="results.html">Results</a> page.</p>
+
+  <h3>M9 — Reports <span class="pill">planned</span></h3>
+  <p>Markdown (+ optional HTML) reports from traces: input/extracted claim, evidence, checks,
+  support label, reproducibility status, failure mode, limitations, and a trace link.</p>
+
+  <h3>M10 — Optional adapters <span class="pill">planned</span></h3>
+  <p><code>RecordedLLMAdapter</code>, <code>MockLLMAdapter</code>, and a cost-guarded
+  <code>ApiAdapterStub</code>. Disabled by default; no paid API required.</p>
+
+  <h3>M11 — Integration contracts <span class="pill">planned</span></h3>
+  <p>Compatible import/export formats for the code-agent runtime, BioScientist OS,
+  BioAgentBench, LLM regression/observability, and agent-control-bench — without depending on
+  those repos.</p>
+
+  <h3>M12 — Portfolio report <span class="pill">planned</span></h3>
+  <p>README and docs to portfolio quality: problem, architecture, worked example, smoke-suite
+  results, reproduction commands, limitations, and the future research path.</p>
+
+  <h3>M13 — Final cleanup <span class="pill">planned</span></h3>
+  <p>Run tests, lint, fixture validation, the smoke suite, and report generation; verify no
+  secrets/private papers/large data/caches/paid-API outputs and a clean tree; commit.</p>
+
+  <div class="callout">Each milestone also updates this website and writes its milestone,
+  commit, and human-review notes under <code>docs/</code>. Statuses here flip to
+  <span class="pill ok">done</span> as milestones complete.</div>
+</main>
+<footer class="site">scientific-claim-verifier — milestones.</footer>
+</body>
+</html>

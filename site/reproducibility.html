@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reproducibility & scoring — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Support labels, reproducibility statuses, and failure modes.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html" class="active">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Reproducibility &amp; scoring</h1>
+  <p class="lede">Scoring maps the set of checks onto three explicit vocabularies: a support
+  label (is the claim backed?), a reproducibility status (did the computation reproduce?), and
+  a failure mode (if not, why?).</p>
+  <p><span class="status planned">status: planned — scoring lands in Milestone 7</span></p>
+
+  <h2>Support labels</h2>
+  <table>
+    <tr><th>Label</th><th>Meaning</th></tr>
+    <tr><td><span class="pill ok">supported</span></td><td>Checks confirm the claim against the artifacts.</td></tr>
+    <tr><td><span class="pill bad">contradicted</span></td><td>Checks show the artifacts disagree with the claim.</td></tr>
+    <tr><td><span class="pill warn">partially_supported</span></td><td>Some but not all of the claim holds (e.g. direction right, magnitude off).</td></tr>
+    <tr><td><span class="pill warn">underspecified</span></td><td>The claim omits conditions needed to check it unambiguously.</td></tr>
+    <tr><td><span class="pill">unverifiable_from_artifacts</span></td><td>No artifact in the bundle can settle the claim.</td></tr>
+    <tr><td><span class="pill">not_checked</span></td><td>No applicable check ran.</td></tr>
+  </table>
+
+  <h2>Reproducibility statuses</h2>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="pill ok">reproduced</span></td><td>Recomputation matches within tolerance.</td></tr>
+    <tr><td><span class="pill ok">approximately_reproduced</span></td><td>Matches within a looser, recorded tolerance.</td></tr>
+    <tr><td><span class="pill bad">failed_environment</span></td><td>Execution failed for environment reasons.</td></tr>
+    <tr><td><span class="pill bad">failed_missing_data</span></td><td>Required dataset artifact absent.</td></tr>
+    <tr><td><span class="pill bad">failed_missing_code</span></td><td>Required code artifact absent.</td></tr>
+    <tr><td><span class="pill bad">failed_numeric_mismatch</span></td><td>Ran, but output is outside tolerance.</td></tr>
+    <tr><td><span class="pill">not_applicable</span></td><td>Claim needs no computation (e.g. descriptive).</td></tr>
+    <tr><td><span class="pill">not_attempted</span></td><td>Reproduction was possible but not run.</td></tr>
+  </table>
+
+  <h2>Failure modes</h2>
+  <p>When a claim is not cleanly supported/reproduced, the result carries a
+  <code>failure_mode</code> that names the reason: missing evidence link, passage does not
+  assert the claim, table cell mismatch, statistic mismatch, numeric out of tolerance, missing
+  data, missing code, execution error/timeout, or underspecification. Failure modes are what
+  make aggregate results diagnostic rather than a single pass-rate number.</p>
+
+  <h2>Aggregate summary</h2>
+  <p>A suite run produces a summary (CSV/JSON) counting support labels, reproducibility
+  statuses, and failure modes across tasks — see <a href="results.html">Results</a>. Scoring is
+  deterministic: explanation quality is judged by expected fields, <strong>not</strong> by an
+  LLM grader.</p>
+</main>
+<footer class="site">scientific-claim-verifier — reproducibility &amp; scoring.</footer>
+</body>
+</html>

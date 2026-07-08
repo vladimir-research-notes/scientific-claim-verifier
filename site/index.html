@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">A CPU-first system for verifying scientific claims against papers, datasets, code artifacts, and reproducibility evidence — with auditable traces.</div>
+  <nav class="site">
+    <a href="index.html" class="active">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Scientific Claim Verifier</h1>
+  <p class="lede">Given a claim and a bundle of scientific artifacts, this system extracts the
+  claim, links it to supporting evidence, runs deterministic checks, attempts lightweight
+  reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
+  backed by a JSONL trace.</p>
+
+  <p><span class="status planned">status: bootstrap complete — Milestone 0 next</span></p>
+
+  <h2>Why not just summarize?</h2>
+  <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
+  claim is <em>supported</em> by the paper's own artifacts, nor whether the underlying
+  computation <em>reproduces</em>. This project treats a claim as something to be checked
+  through several independent evidence channels, each recorded and inspectable. The output
+  keeps five things visibly separate:</p>
+  <div class="grid">
+    <div class="card"><h3>Extracted claim</h3><p>The normalized claim and its typed fields (metrics, datasets, expected value, operator).</p></div>
+    <div class="card"><h3>Supporting text</h3><p>The exact passage(s) linked as evidence, with provenance.</p></div>
+    <div class="card"><h3>Computed check</h3><p>A deterministic recomputation, table lookup, or code execution.</p></div>
+    <div class="card"><h3>Inference</h3><p>The support label and reproducibility status derived from the checks.</p></div>
+    <div class="card"><h3>Unverifiable</h3><p>What could <em>not</em> be checked from the supplied artifacts, and why.</p></div>
+  </div>
+
+  <h2>The evidence channels</h2>
+  <ol>
+    <li>Does the claim appear in the paper text?</li>
+    <li>Which exact passage supports it?</li>
+    <li>Is the claim tied to a table, figure, dataset, or code artifact?</li>
+    <li>Can the relevant computation be reproduced or approximated from artifacts?</li>
+    <li>If not, why not (failure mode)?</li>
+    <li>Is the claim supported, contradicted, partially supported, underspecified, or unverifiable?</li>
+    <li>Can the system emit a trace a human can audit end to end?</li>
+  </ol>
+
+  <h2>Pipeline</h2>
+  <pre><code>task (YAML/JSON)
+  -> artifacts   load + content-hash paper / dataset / code
+  -> claims      extract (rule-based / mock LLM) -> normalize
+  -> evidence    link passages / tables / datasets / code refs
+  -> checks      statistical · table recompute · figure recompute · code execution · consistency
+  -> sandbox     temp dir · timeout · no-network policy · stdout/stderr/exit capture
+  -> scoring     support label · reproducibility status · failure mode
+  -> report      Markdown (+ optional HTML)  <-  JSONL trace</code></pre>
+
+  <h2>Constraints</h2>
+  <ul>
+    <li>CPU-only, offline, and free by default. Target hardware: AWS <code>m5.2xlarge</code>. No GPU.</li>
+    <li>No paid API in the default path. Optional LLM adapters are disabled by default and,
+      if enabled, require dry-run, a response cache, a token/cost estimator, a hard max-cost
+      guard, and explicit opt-in.</li>
+    <li>Fixtures are small, synthetic or open, and committed. Tests never touch the network.</li>
+  </ul>
+
+  <h2>What this is not</h2>
+  <p>Not a paper summarizer, not a learning demo, and not an oracle of scientific truth.
+  Verdicts are <strong>relative to the supplied artifacts</strong>. The system is explicitly
+  out of scope for clinical decisions, medical advice, and wet-lab protocols — see
+  <a href="safety.html">Safety</a>.</p>
+
+  <h2>Getting oriented</h2>
+  <ul>
+    <li><a href="claim-schema.html">Claim schema</a> — claim types and fields.</li>
+    <li><a href="artifact-bundles.html">Artifact bundles</a> — how papers, datasets, and code are packaged.</li>
+    <li><a href="checks.html">Checks</a> — the deterministic verification checks.</li>
+    <li><a href="reproducibility.html">Reproducibility</a> — the reproduction status vocabulary.</li>
+    <li><a href="milestones.html">Milestones</a> — the full build plan, milestone by milestone.</li>
+  </ul>
+</main>
+<footer class="site">scientific-claim-verifier — research/engineering project, built milestone by milestone. CPU-only, offline, no paid API required.</footer>
+</body>
+</html>

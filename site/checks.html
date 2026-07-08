@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verification checks — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Verification checks — the deterministic checks that turn evidence into a verdict.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html" class="active">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Verification checks</h1>
+  <p class="lede">Checks are deterministic and transparent. Each takes a claim plus its linked
+  artifacts and emits a <code>VerificationCheck</code> record with inputs, computed value,
+  expected value, tolerance, pass/fail, and notes.</p>
+  <p><span class="status planned">status: planned — checks land in Milestone 5; sandbox in Milestone 6</span></p>
+
+  <h2>The checks</h2>
+  <table>
+    <tr><th>Check</th><th>Module</th><th>What it does</th></tr>
+    <tr><td>Table value</td><td><code>checks/table_recompute.py</code></td><td>Looks up / recomputes a cell and compares to the claimed value.</td></tr>
+    <tr><td>Dataset statistic</td><td><code>checks/statistical.py</code></td><td>Recomputes count / mean / std / correlation from a CSV.</td></tr>
+    <tr><td>Numeric tolerance</td><td><code>checks/statistical.py</code></td><td>Compares computed vs expected within an absolute/relative tolerance.</td></tr>
+    <tr><td>Comparison</td><td><code>checks/consistency.py</code></td><td>Checks directional claims ("improves from X to Y").</td></tr>
+    <tr><td>Evidence presence</td><td><code>checks/consistency.py</code></td><td>Confirms a linked passage actually asserts the claim.</td></tr>
+    <tr><td>Figure recompute</td><td><code>checks/figure_recompute.py</code></td><td>Regenerates a summary table/figure from data and compares key values.</td></tr>
+    <tr><td>Code execution</td><td><code>checks/code_execution.py</code></td><td>Runs a tiny script in the sandbox and compares output to expected.</td></tr>
+  </table>
+
+  <h2>Tolerance handling</h2>
+  <p>Numeric comparisons never rely on exact float equality. Each numeric claim carries an
+  expected value and an operator; the check applies an absolute or relative tolerance
+  (defaulted per metric, overridable per task) and records both the raw difference and the
+  tolerance used, so a near-miss reads as <em>approximately reproduced</em> rather than a hard
+  fail. See <a href="reproducibility.html">Reproducibility</a>.</p>
+
+  <h2>Code execution</h2>
+  <p>The code-execution check runs <strong>tiny, trusted fixture scripts</strong> through the
+  sandbox layer: a temp working directory, a wall-clock timeout, captured
+  stdout/stderr/exit-code, and a no-network policy. This is controlled fixture execution for
+  reproducibility — <strong>not</strong> an untrusted-code or exploit sandbox, and it makes no
+  production-grade isolation claim. See <a href="limitations.html">Limitations</a>.</p>
+
+  <div class="callout">A check never decides the final label alone. Checks produce evidence;
+  <a href="reproducibility.html">scoring</a> maps the set of checks onto a support label,
+  a reproducibility status, and (on failure) a failure mode.</div>
+
+  <h2>Determinism</h2>
+  <p>Checks avoid wall-clock and unseeded randomness in anything that affects their output.
+  Ordering is stable, and every computed value is written to the JSONL trace so a report can
+  be regenerated and audited without re-running the checks.</p>
+</main>
+<footer class="site">scientific-claim-verifier — verification checks.</footer>
+</body>
+</html>

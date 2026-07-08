@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Results — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Results — smoke-suite outcomes (populated as milestones land).</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html" class="active">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Results</h1>
+  <p class="lede">This page reports the offline smoke-suite outcomes: support-label and
+  reproducibility-status distributions, failure-mode counts, and links to generated reports.</p>
+  <p><span class="status planned">status: no suite run yet — populated in Milestone 8</span></p>
+
+  <h2>Smoke suite (pending)</h2>
+  <p>The smoke suite will contain 8–15 verification tasks across the task families and run
+  fully offline on a single CPU. Until Milestone 8 runs it, the tables below are placeholders.</p>
+
+  <h3>Support-label distribution</h3>
+  <table>
+    <tr><th>Label</th><th>Count</th></tr>
+    <tr><td>supported</td><td>—</td></tr>
+    <tr><td>contradicted</td><td>—</td></tr>
+    <tr><td>partially_supported</td><td>—</td></tr>
+    <tr><td>underspecified</td><td>—</td></tr>
+    <tr><td>unverifiable_from_artifacts</td><td>—</td></tr>
+    <tr><td>not_checked</td><td>—</td></tr>
+  </table>
+
+  <h3>Reproducibility-status distribution</h3>
+  <table>
+    <tr><th>Status</th><th>Count</th></tr>
+    <tr><td>reproduced</td><td>—</td></tr>
+    <tr><td>approximately_reproduced</td><td>—</td></tr>
+    <tr><td>failed_numeric_mismatch</td><td>—</td></tr>
+    <tr><td>failed_missing_data / code / environment</td><td>—</td></tr>
+    <tr><td>not_applicable / not_attempted</td><td>—</td></tr>
+  </table>
+
+  <div class="callout">Results are reproducible: the exact commands to regenerate this page's
+  numbers will live in <code>docs/REPRODUCIBILITY.md</code> and can be run offline on
+  <code>m5.2xlarge</code>.</div>
+</main>
+<footer class="site">scientific-claim-verifier — results.</footer>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Safety — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Safety — scientific scope and hard boundaries.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html" class="active">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Safety</h1>
+  <p class="lede">This project is deliberately scoped to safe, computational, open/synthetic
+  scientific examples. The boundaries below are permanent non-goals, not temporary gaps.</p>
+
+  <h2>In scope</h2>
+  <ul>
+    <li>Machine-learning benchmark claims (accuracy/F1 deltas, ablation tables).</li>
+    <li>Bioinformatics <em>toy</em> analyses over synthetic/open data.</li>
+    <li>Statistical claims over small committed CSVs.</li>
+    <li>Simple ablation / results tables.</li>
+    <li>Reproduction of tiny Python scripts computing a reported metric.</li>
+  </ul>
+
+  <h2>Out of scope — always</h2>
+  <div class="callout safety">
+    <ul>
+      <li>No clinical decision-making and no patient-specific advice.</li>
+      <li>No medical or treatment recommendations.</li>
+      <li>No wet-lab protocol design or optimization.</li>
+      <li>No dual-use biological instructions.</li>
+      <li>No real patient data and no private/real papers.</li>
+      <li>No real credential handling.</li>
+    </ul>
+  </div>
+
+  <h2>Data policy</h2>
+  <p>All fixtures are synthetic or open and small. Secrets, credentials, private papers, large
+  datasets, model weights, and paid-API outputs are never committed (enforced by
+  <code>.gitignore</code> and a repo-hygiene check). See
+  <a href="artifact-bundles.html">Artifact bundles</a>.</p>
+
+  <h2>Auditability, not authority</h2>
+  <p>The system's purpose is to make claim-checking <strong>transparent and inspectable</strong>:
+  it separates the extracted claim, the supporting text, the computed check, the inference, and
+  the unverifiable parts. It does not present itself as an authority on whether a scientific
+  claim is true — only on what the supplied artifacts do or do not support. See
+  <a href="limitations.html">Limitations</a>.</p>
+</main>
+<footer class="site">scientific-claim-verifier — safety.</footer>
+</body>
+</html>

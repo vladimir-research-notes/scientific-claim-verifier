@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Limitations — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Limitations — what this system does not do and cannot claim.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html" class="active">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Limitations</h1>
+  <p class="lede">Being explicit about limits is part of the auditability goal. This system is a
+  small, honest tool — not an oracle.</p>
+
+  <h2>Verdicts are relative to the artifacts</h2>
+  <p>Every support label and reproducibility status is <strong>relative to the supplied
+  bundle</strong>. "Supported" means the artifacts in the task back the claim, not that the
+  claim is true in the world. There is no universal scientific-truth judgment.</p>
+
+  <h2>Extraction is heuristic</h2>
+  <p>The default claim extractor is rule-based and deliberately simple. It targets numeric and
+  comparison claims in clean text and will miss or mis-parse complex phrasing. It is a
+  transparent baseline, not a state-of-the-art NLP system, and is labelled as such everywhere.</p>
+
+  <h2>Fixtures are small and synthetic</h2>
+  <p>Fixtures are tiny, synthetic or open datasets chosen to exercise the checks. They are not
+  representative of real papers at scale, and results should not be read as a benchmark
+  leaderboard.</p>
+
+  <h2>The sandbox is not a security boundary</h2>
+  <div class="callout warn">The code-execution layer runs <strong>tiny, trusted fixture
+  scripts</strong> in a temp dir with a timeout and captured output. It provides no process
+  isolation, resource-limit, or network-policy guarantees against adversarial code. It is
+  controlled fixture execution for reproducibility — <strong>not</strong> a production-grade or
+  untrusted-code sandbox. Do not run untrusted code through it.</div>
+
+  <h2>Reproduction is lightweight</h2>
+  <p>"Reproduction" here means recomputing a statistic or running a tiny script and comparing to
+  an expected value within tolerance. It does not attempt full environment reconstruction,
+  dependency resolution, or long-running training.</p>
+
+  <h2>No paid model in the loop by default</h2>
+  <p>The default path is fully deterministic and free. Optional LLM adapters exist but are
+  disabled; any paid-API use is gated behind dry-run, caching, a cost estimator, a hard
+  max-cost guard, and explicit opt-in.</p>
+
+  <p>See also <a href="safety.html">Safety</a> for scope boundaries.</p>
+</main>
+<footer class="site">scientific-claim-verifier — limitations.</footer>
+</body>
+</html>

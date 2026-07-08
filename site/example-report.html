@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Example report — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Example report — what an auditable verification result looks like.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html" class="active">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Example report</h1>
+  <p class="lede">An illustrative sketch of a report for a dataset-statistic claim. The real
+  generator (Milestone 9) emits reports from JSONL traces; this page is a design mock and will
+  be replaced with a report from an actual smoke-suite run.</p>
+  <p><span class="status planned">status: illustrative mock — real reports land in Milestones 8–9</span></p>
+
+  <h2>Illustrative verification result</h2>
+  <pre><code># Verification report — task: statistical_claims/samples_mean
+
+Claim (as written)
+  "The dataset contains 120 samples with mean value 3.4."
+
+Extracted claim
+  claim_type          : dataset_claim
+  metrics             : [count, mean]
+  datasets            : [ds_synthetic_a]
+  expected_value      : {count: 120, mean: 3.4}
+  comparison_operator : ~ (approx)
+
+Supporting text
+  passage p3 (paper_snippets.md):
+    "Our synthetic set comprises 120 samples (mean 3.4)."
+
+Computed check
+  dataset statistic recompute  [data/fixtures/datasets/ds_synthetic_a.csv, sha256 3b9f...]
+    count : expected 120  computed 120        -> match
+    mean  : expected 3.4  computed 3.387       abs_diff 0.013  tol 0.05  -> within tolerance
+
+Inference
+  support_label         : supported
+  reproduction_status   : approximately_reproduced
+  failure_mode          : none
+  confidence            : high
+
+Unverifiable
+  (none for this claim)
+
+Limitations
+  Verdict is relative to the supplied fixture artifacts only.
+
+Trace: results/runs/&lt;run_id&gt;/trace.jsonl</code></pre>
+
+  <h2>Report sections</h2>
+  <p>Every generated report keeps the five channels separate — extracted claim, supporting
+  text, computed check, inference, unverifiable — plus limitations and a link to the JSONL
+  trace. The Markdown report is the default; an optional HTML report shares the same content.</p>
+
+  <div class="callout">This is a mock for orientation. When the smoke suite runs
+  (Milestone 8) the site will link to a real generated report and its trace.</div>
+</main>
+<footer class="site">scientific-claim-verifier — example report.</footer>
+</body>
+</html>
