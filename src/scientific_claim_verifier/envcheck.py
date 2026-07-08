@@ -17,8 +17,9 @@ import platform
 import sys
 from dataclasses import dataclass, field
 
-# Interpreter policy. The floor is a soft minimum; the project targets 3.12.
-MIN_PYTHON: tuple[int, int] = (3, 10)
+# Interpreter policy. The floor is 3.11 (the typed schema uses ``enum.StrEnum``,
+# new in 3.11); the project targets 3.12.
+MIN_PYTHON: tuple[int, int] = (3, 11)
 RECOMMENDED_PYTHON: tuple[int, int] = (3, 12)
 
 # (import name, purpose). Required libraries must import for the check to pass.

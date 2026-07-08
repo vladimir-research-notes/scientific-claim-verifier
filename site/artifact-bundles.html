@@ -29,7 +29,7 @@
   <p class="lede">A task bundles the evidence a claim will be checked against: paper snippets,
   tables, figure metadata, datasets, code files, and expected outputs. Everything is small,
   synthetic or open, and content-hashed for provenance.</p>
-  <p><span class="status planned">status: planned — loaders and hashing land in Milestones 1–2</span></p>
+  <p><span class="status done">status: bundle schema landed in Milestone 1</span> &nbsp; <span class="status planned">loaders + content hashing land in Milestone 2</span></p>
 
   <h2>Bundle components</h2>
   <table>
@@ -55,9 +55,16 @@ data/fixtures/
 
   <h2>Provenance & hashing</h2>
   <p>Each <code>PaperArtifact</code>, <code>DatasetArtifact</code>, and <code>CodeArtifact</code>
-  is content-hashed (<code>artifacts/hashing.py</code>). The hash is recorded in the trace so a
+  carries a <code>content_hash</code> field (typed in Milestone 1; populated by
+  <code>artifacts/hashing.py</code> in Milestone 2). The hash is recorded in the trace so a
   report can state exactly which bytes a verdict was computed against, and a re-run against
   changed artifacts is detectable.</p>
+
+  <h2>Bundle integrity</h2>
+  <p>The <code>ArtifactBundle</code> schema enforces, at construction, that artifact IDs are
+  unique across papers/datasets/code and that table, figure, and passage IDs are unique within
+  their scope. A duplicate is a hard validation error, so every <code>EvidenceLink</code>
+  resolves to exactly one target — a precondition for auditable provenance.</p>
 
   <div class="callout">Fixture rules: small, synthetic or open, committed. No private/real
   papers, no large datasets, no model weights. See <a href="safety.html">Safety</a> and the

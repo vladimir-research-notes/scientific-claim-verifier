@@ -29,7 +29,7 @@
   <p class="lede">A claim is not free text to be summarized — it is a typed object with explicit,
   checkable fields. This lets checks target specific values and lets the report separate the
   claim from the evidence and the inference.</p>
-  <p><span class="status planned">status: planned — typed <code>pydantic</code> models land in Milestone 1</span></p>
+  <p><span class="status done">status: Milestone 1 complete — typed <code>pydantic</code> models landed in <code>src/scientific_claim_verifier/schemas.py</code></span></p>
 
   <h2>ScientificClaim fields</h2>
   <table>
@@ -44,8 +44,10 @@
     <tr><td><code>metrics</code></td><td>Named metrics (accuracy, F1, mean, count, …).</td></tr>
     <tr><td><code>datasets</code></td><td>Referenced dataset IDs.</td></tr>
     <tr><td><code>conditions</code></td><td>Stated conditions/qualifiers (split, seed, subset).</td></tr>
-    <tr><td><code>expected_value</code></td><td>The asserted numeric value or range.</td></tr>
+    <tr><td><code>expected_value</code></td><td>The asserted numeric value.</td></tr>
+    <tr><td><code>baseline_value</code></td><td>The "from" value of a comparison claim ("from 72 to 78").</td></tr>
     <tr><td><code>comparison_operator</code></td><td><code>=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>~</code> (approx).</td></tr>
+    <tr><td><code>units</code></td><td>Units of the value (e.g. <code>%</code>), when stated.</td></tr>
     <tr><td><code>evidence_links</code></td><td>Links to passages, tables, datasets, or code refs.</td></tr>
   </table>
 
@@ -62,9 +64,11 @@
     <tr><td><code>unsupported_or_contextual_claim</code></td><td>"This is the best approach in the literature."</td><td>flagged as unverifiable / contextual</td></tr>
   </table>
 
-  <div class="callout">The canonical, field-by-field definition will live in
-  <code>docs/CLAIM_SCHEMA.md</code>, generated alongside the <code>pydantic</code> models so the
-  docs and the code cannot drift.</div>
+  <div class="callout">The canonical, field-by-field definition lives in
+  <code>docs/CLAIM_SCHEMA.md</code>, written to match the <code>pydantic</code> models in
+  <code>schemas.py</code> so the docs and the code cannot drift. Every model forbids unknown
+  fields (<code>extra="forbid"</code>), and the vocabularies below are <code>StrEnum</code>s
+  whose values are exactly the strings shown here.</div>
 
   <h2>Design intent</h2>
   <ul>
