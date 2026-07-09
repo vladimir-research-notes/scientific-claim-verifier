@@ -29,6 +29,9 @@
   <h1>Limitations</h1>
   <p class="lede">Being explicit about limits is part of the auditability goal. This system is a
   small, honest tool — not an oracle.</p>
+  <div class="callout">The canonical list is <code>docs/LIMITATIONS.md</code>. Every limitation there
+  is either enforced by a test, visible in a fixture, or a stated non-goal — a tool that hides its
+  limits cannot be audited.</div>
 
   <h2>Verdicts are relative to the artifacts</h2>
   <p>Every support label and reproducibility status is <strong>relative to the supplied
@@ -134,12 +137,41 @@
   means a <em>failing</em> script's traceback embeds the host's stdlib paths: traces of failing runs
   are reproducible per machine, not across machines. Redacting the traceback would be worse.</p>
 
+  <h2>What is built but unexercised, and what is not built</h2>
+  <p><code>figure_recompute</code> is <strong>named, not implemented</strong>.
+  <code>CheckType.FIGURE_RECOMPUTE</code> exists, the figure linker resolves a figure by its data
+  series, and the extractor detects "Figure N" mentions — but no check recomputes a figure, and no
+  committed fixture has one. It is recorded as unimplemented in <code>docs/CHECKS.md</code> rather
+  than stubbed into something that looks live.</p>
+  <p>Four vocabulary values are unreachable end to end and are pinned by unit tests instead of by a
+  fixture: <code>not_checked</code> (the check runner always emits an <code>evidence_presence</code>
+  check), <code>failed_missing_data</code> and <code>failed_missing_code</code> (a task naming an
+  absent fixture file fails to <em>load</em>), and <code>not_attempted</code> (reachable only via
+  <code>--no-execute</code>).</p>
+  <p>A schema-1.3 trace records what the pipeline <em>computed</em>, not how an operator
+  <em>invoked</em> it, so it carries none of the four controls. <code>export --format episodes</code>
+  recovers <code>execute</code> from a suite <code>summary.json</code> and refuses when the operator's
+  declared flag disagrees; the other three are taken from the operator. A wrongly declared control does
+  not silently lie — replay reports <code>drifted</code> and names the field — but it is an assumption,
+  and removing it means a <code>scoring.controls</code> event and schema 1.4.</p>
+  <p>The five export formats were shaped for a consumer <em>role</em>. <strong>No external schema was
+  consulted</strong>: none of the named systems was read, imported, or run, so nothing is a measurement
+  of compatibility with any of them. What is checked is containment — every module under
+  <code>integrations/</code> imports nothing but the standard library, <code>pydantic</code>, and this
+  project. See <a href="integrations.html">Integrations</a>.</p>
+
   <h2>No paid model in the loop by default</h2>
   <p>The default path is fully deterministic and free. Optional LLM adapters exist but are
-  disabled; any paid-API use is gated behind dry-run, caching, a cost estimator, a hard
-  max-cost guard, and explicit opt-in.</p>
+  disabled, and the paid path is inert <strong>by construction</strong> rather than by configuration:
+  a live call requires four independent acts, and the repo ships neither a price table nor an HTTP
+  transport (a test asserts no module under <code>adapters/</code> and no declared dependency imports
+  one). The recorded adapter's <code>30/32</code> measures that a request is fingerprinted, replayed,
+  parsed, and scored faithfully — and <strong>nothing at all</strong> about any model's ability to
+  extract a claim. No API was called; no language model produced those responses.</p>
 
-  <p>See also <a href="safety.html">Safety</a> for scope boundaries.</p>
+  <p>See also <a href="safety.html">Safety</a> for scope boundaries, and
+  <code>docs/PAPER_PATH.md</code> for what would have to be true before any of this repository's
+  numbers were a claim about the world.</p>
 </main>
 <footer class="site">scientific-claim-verifier — limitations.</footer>
 </body>

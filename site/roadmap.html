@@ -44,15 +44,42 @@
     <div class="card"><h3>agent-control-bench</h3><p><code>episodes</code>: claim verifications as controllable, replayable units — <code>claimverifier replay</code> re-runs all eleven and reproduces every verdict.</p></div>
   </div>
 
+  <h2>The research path (Milestone 12 — written)</h2>
+  <p><code>docs/PAPER_PATH.md</code> sets out what would have to be true before any of this repo's
+  numbers were a claim about the world rather than a claim about this repository. The short version:
+  this is a <strong>systems and auditability contribution</strong>, not an NLP result. The instrument
+  is finished enough to be pointed at something; the paper is the corpus, the baselines, and the
+  ablation — not the instrument.</p>
+  <p>Three studies, in dependency order, none of which needs a GPU or a paid API:</p>
+  <div class="grid">
+    <div class="card"><h3>1. A real, annotated claim set</h3><p>Claims from open-access papers with released artifacts, hundreds not dozens, two annotators each, <strong>inter-annotator agreement reported</strong>. Until this exists, every accuracy-shaped number here is a self-report.</p></div>
+    <div class="card"><h3>2. Baselines</h3><p><code>10/11</code> is unanchored. A system labelling everything <code>unverifiable_from_artifacts</code> scores zero wrong verdicts — the declared primary metric. That degenerate floor must be reported alongside.</p></div>
+    <div class="card"><h3>3. The falsifying ablation</h3><p>Collapse check <code>status</code> into claim <code>signal</code> and measure the induced wrong verdicts. If they do not appear, this repo's central design claim is wrong and should be withdrawn.</p></div>
+  </div>
+  <p>The transferable argument is about evaluation design: <em>for verification systems, an evaluation
+  that cannot distinguish asserting something false from declining to assert will systematically select
+  for models that guess.</em> Its honest counterweight, stated in the same document: a metric that only
+  punishes wrong verdicts is gameable by silence, so <code>wrong_verdicts</code> and
+  <code>conservative_misses</code> must always be reported together, and never summed.</p>
+
   <h2>Method directions</h2>
+  <p>Deliberately modest, and ordered by priority in <code>docs/PAPER_PATH.md</code> §5. Each keeps the
+  rule-based path as the interpretable floor.</p>
   <ul>
-    <li>Stronger, still-transparent extraction (grammar/pattern libraries) with the rule-based
-      baseline kept as the interpretable floor.</li>
-    <li>More check types: distributional comparisons, seed-sensitivity checks, and simple
-      figure-value extraction from committed series.</li>
-    <li>Richer failure-mode taxonomy driven by what the smoke suite actually surfaces.</li>
-    <li>Optional, cost-guarded LLM adapters for extraction assistance — with the rule-based
-      path always available and always the default.</li>
+    <li>A stronger evidence check with an exact target: move <code>synthetic_data_passage</code> from
+      <code>inconclusive</code> to <code>pass</code> <strong>without</strong> moving
+      <code>contradicted_f1</code>'s passage check off <code>pass</code>.</li>
+    <li><code>figure_recompute</code>: the <code>CheckType</code> and the figure linker exist; no check
+      and no fixture do. Figures carry data series, never pixels, so this is a recomputation — not a
+      vision problem.</li>
+    <li>Semantic claim <em>conditions</em> — the one extraction field the pipeline misses today, and the
+      field that separates <code>underspecified</code> from <code>supported</code>.</li>
+    <li>Cross-claim consistency. Every claim is scored independently; a paper contradicting itself
+      across sections is the most interesting object this tool could find, and it currently cannot.</li>
+    <li>Distributional and seed-sensitivity checks: a metric that holds only for one seed is a
+      reproducibility failure <code>numeric_tolerance</code> would call a pass.</li>
+    <li>Optional, cost-guarded LLM adapters for extraction assistance — with the rule-based path always
+      available and always the default.</li>
   </ul>
 
   <h2>What will stay out</h2>
@@ -60,8 +87,8 @@
   dual-use biology, no real patient data, and no claim to be a production untrusted-code
   sandbox. See <a href="safety.html">Safety</a> and <a href="limitations.html">Limitations</a>.</p>
 
-  <div class="callout">The detailed, honest research path will be maintained in
-  <code>docs/PAPER_PATH.md</code>.</div>
+  <div class="callout">A verdict is relative to the supplied artifacts. That is not a limitation to be
+  engineered away — it is the thesis.</div>
 </main>
 <footer class="site">scientific-claim-verifier — roadmap.</footer>
 </body>

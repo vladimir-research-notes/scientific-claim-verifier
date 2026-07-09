@@ -495,9 +495,22 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
   <code>failed_missing_code</code> cannot be expressed as a task at all, because a task naming an
   absent fixture file fails to <em>load</em>. All three are pinned by unit tests instead.</p>
 
-  <div class="callout">Results are reproducible: the exact commands to regenerate this page's
-  numbers will live in <code>docs/REPRODUCIBILITY.md</code> and can be run offline on
-  <code>m5.2xlarge</code>.</div>
+  <h2>These numbers cannot quietly rot</h2>
+  <p>Every number on this page is reproducible offline on one CPU, with the exact command beside it
+  in <code>docs/REPRODUCIBILITY.md</code>. That document carries a table of fifteen headline numbers
+  — tasks, checks by status, scripts executed, gold agreement, <strong>wrong verdicts</strong>,
+  conservative misses, export formats, CLI commands — and a test <strong>re-derives every one of
+  them from a live suite run</strong>. A document that drifts from the pipeline fails the build,
+  rather than waiting for a reader to notice.</p>
+  <p>Two numbers are deliberately absent from that table. The <strong>test count</strong>: a test
+  asserting how many tests exist is self-referential and rots on contact with its own success. And
+  <strong>wall-clock timing</strong> — roughly 1.5 s for the suite, 23 s for the tests — reported as
+  an approximation everywhere and asserted nowhere, because a machine-dependent number that a test
+  pins is a test that fails on a slower machine for no reason.</p>
+
+  <div class="callout">Results are reproducible: <code>docs/REPRODUCIBILITY.md</code> gives the exact
+  command for every number here, and they run offline on <code>m5.2xlarge</code> with no GPU, no
+  network, and no paid API.</div>
 </main>
 <footer class="site">scientific-claim-verifier — results.</footer>
 </body>

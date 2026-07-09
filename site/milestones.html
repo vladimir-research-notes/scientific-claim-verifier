@@ -31,7 +31,7 @@
   <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
   run, each committed locally with docs and website updated. Guards between milestones require a
   new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
-  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0–M11 complete</span> &nbsp; <span class="status planned">Milestones 12–13 pending</span></p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0–M12 complete</span> &nbsp; <span class="status planned">Milestone 13 pending</span></p>
 
   <h2>Bootstrap (done)</h2>
   <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
@@ -264,9 +264,30 @@
   <span class="pill ok">11/11 episodes replay, --strict</span>
   <span class="pill ok">no external import</span> <span class="pill ok">ruff clean</span></p>
 
-  <h3>M12 — Portfolio report <span class="pill">planned</span></h3>
+  <h3>M12 — Portfolio report <span class="pill ok">done</span></h3>
   <p>README and docs to portfolio quality: problem, architecture, worked example, smoke-suite
-  results, reproduction commands, limitations, and the future research path.</p>
+  results, reproduction commands, limitations, and the future research path. Four documents the
+  plan's repository map has named since bootstrap were written for the first time —
+  <code>docs/METHODOLOGY.md</code> (the design commitments, and what each stage may <em>not</em>
+  conclude), <code>docs/LIMITATIONS.md</code>, <code>docs/REPRODUCIBILITY.md</code>, and
+  <code>docs/PAPER_PATH.md</code>. All four had gone unwritten for twelve milestones, and nothing
+  noticed.</p>
+  <p>So the milestone's deliverable is not the prose. It is <code>tests/test_docs.py</code>, which
+  turns the portfolio claims into artifacts the build checks: every document the plan promises
+  exists (its repository map is <em>parsed</em>, not trusted), every relative link in 59 Markdown
+  documents and 12 website pages resolves, every <code>claimverifier</code> verb the docs invoke is
+  read off the parser itself, every command the CLI exposes is documented somewhere, and — the
+  load-bearing one — <strong>the fifteen headline numbers in <code>docs/REPRODUCIBILITY.md</code>
+  are re-derived from a live suite run</strong>. A document that drifts from the code now fails the
+  build.</p>
+  <p>Two numbers are deliberately kept <em>out</em> of that table: the test count, because a test
+  asserting how many tests exist rots on contact with its own success, and wall-clock timing,
+  because a machine-dependent number that a test pins is a test that fails on a slower machine for
+  no reason. Nothing on the default path changed, so no verdict, check, rule, or fixture moved, and
+  the smoke gate is unchanged.
+  <span class="pill ok">122 new tests</span> <span class="pill ok">878 total</span>
+  <span class="pill ok">15 headline numbers, re-derived</span>
+  <span class="pill ok">0 broken links</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M13 — Final cleanup <span class="pill">planned</span></h3>
   <p>Run tests, lint, fixture validation, the smoke suite, and report generation; verify no

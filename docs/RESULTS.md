@@ -18,6 +18,7 @@ that do not exist yet are marked pending, not estimated.
 | Reports generated from traces | M9 | 11 reports + index, round trip exact |
 | Integration exports | M11 | 5 formats, byte-stable, no external import |
 | Episode replay | M11 | 11/11 reproduced, byte-identical traces (`--strict`) |
+| Documentation gate | M12 | 15 headline numbers re-derived from a live run |
 
 > **The fixture set grew in M8**, from seven tasks to eleven, so that the smoke suite
 > could reach the labels and statuses the original seven never produced —
@@ -968,10 +969,83 @@ and names the field. But it is an assumption, and removing it means recording th
 in the trace (a `scoring.controls` event, schema 1.4). That is a schema change, and it
 belongs to the milestone that needs it. See `docs/INTEGRATIONS.md`.
 
+## M12 — the portfolio documents, and the gate that keeps them true
+
+```bash
+python3 -m pytest tests/test_docs.py -q     # 122 tests
+```
+
+Milestone 12 brings the README and docs to portfolio quality. The only *measurable* thing a
+documentation milestone can produce is a check that the documentation is still true, so that
+is what it produced: `tests/test_docs.py` turns the portfolio claims into artifacts the build
+verifies.
+
+| What is now checked | How |
+| --- | --- |
+| Every document `docs/PLAN.md` promises exists | its repository map is parsed, not read |
+| Every relative link in the README and `docs/**.md` resolves | 59 documents, resolved from disk |
+| Every relative link and nav entry on the website resolves | 12 pages |
+| Every `claimverifier <verb>` the docs invoke is real | verbs taken from the parser itself |
+| Every command the CLI exposes is documented somewhere | the converse direction |
+| Every `scripts/*.py` the docs reference exists | |
+| **The 15 headline numbers in `docs/REPRODUCIBILITY.md`** | **re-derived from a live suite run** |
+| Every milestone has its three notes, numbered without gaps | `milestones/`, `commits/`, `review_notes/` |
+| No review note claims a review that has not happened | `CLAUDE.md`'s placeholder contract |
+
+### What the gate caught
+
+`docs/PLAN.md` §5 has named `METHODOLOGY.md`, `LIMITATIONS.md`, `REPRODUCIBILITY.md`, and
+`PAPER_PATH.md` in its repository map since bootstrap. **All four went unwritten for twelve
+milestones, and nothing noticed** — the site had a `limitations.html` page and a `roadmap.html`
+that promised `docs/PAPER_PATH.md` by name, while the file itself never existed. A plan that
+promises a document and a build that never checks is a plan that decays silently.
+
+All four are now written, and `test_every_document_promised_by_the_plan_exists` parses the map
+rather than trusting a hand-maintained list, so the next promise is checked the moment it is
+made.
+
+### The headline table is the interesting part
+
+`docs/REPRODUCIBILITY.md` §2 is a Markdown table of fifteen numbers. The test parses it, runs
+the eleven-task suite in-process, derives all fifteen from the run, and asserts equality — plus
+a completeness assertion, so a key silently dropped from the table fails as loudly as a wrong
+value:
+
+| Key | Value | | Key | Value |
+| --- | --- | --- | --- | --- |
+| `tasks` | 11 | | `wrong_verdicts` | **0** |
+| `checks` | 26 | | `conservative_misses` | 1 |
+| `checks_pass` | 20 | | `support_agreement` | 10 |
+| `checks_fail` | 3 | | `reproduction_agreement` | 11 |
+| `checks_inconclusive` | 1 | | `failure_agreement` | 10 |
+| `checks_error` | 1 | | `export_formats` | 5 |
+| `checks_skipped` | 1 | | `cli_commands` | 12 |
+| `scripts_executed` | 3 | | | |
+
+Two numbers are deliberately **absent** from it. The **test count** — a test asserting how many
+tests exist is self-referential and rots on contact with its own success. And **wall-clock
+timing**: ~1.5 s for the suite and ~23 s for the tests are reported as approximations
+everywhere and asserted nowhere, because a machine-dependent number that a test pins is a test
+that fails on a slower machine for no reason.
+
+### How to read this
+
+**This measures the documentation, not the science.** "59 documents, 0 broken links" says a
+reader will not hit a 404. "15 numbers re-derived" says `docs/REPRODUCIBILITY.md` cannot quietly
+disagree with the pipeline. Neither says anything about whether the verdicts are correct — that
+is what `summary.csv` is for, and nothing in this milestone changed a verdict, a check, a rule,
+or a fixture. The smoke gate is unchanged because **nothing on the default path changed**.
+
+The new documents are prose, and prose is not evidence. `docs/PAPER_PATH.md` exists precisely to
+say so at length: the eleven fixtures remain a regression harness, `10/11` remains unanchored by
+any baseline, and the ablation that could *falsify* this repository's central design claim —
+that separating check `status` from claim `signal` prevents a specific class of error — has not
+been run.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 756 passed
+python3 -m pytest -q     # 878 passed
 ruff check .             # all checks passed
 ```
 
@@ -989,13 +1063,19 @@ ruff check .             # all checks passed
 | M9 | 100 | 600 |
 | M10 | 70 | 670 |
 | M11 | 86 | 756 |
+| M12 | 122 | 878 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
-used anywhere in the default path. M5's, M6's, M8's, M9's, and M11's tests execute
+used anywhere in the default path. M5's, M6's, M8's, M9's, M11's, and M12's tests execute
 committed, stdlib-only fixture scripts (plus a few written by the tests themselves) as
 child processes — local, harmless, and offline. M11's replay tests are the most expensive:
 they drive the whole pipeline over the eleven fixtures once. The socket tests either construct a socket or
 are refused before one exists; none of them connects to anything.
+
+M12's 122 tests are mostly parametrized over files — one per Markdown document, one per
+website page, one per milestone note — so the count reflects the size of the repository's
+documentation rather than the depth of any single assertion. The load-bearing one is
+`test_reproducibility_headline_numbers_match_the_live_pipeline`, which runs the suite once.
 
 Two tests are load-bearing on the wall clock: the CPU-limit test burns ~1 CPU-second
 and the process-group test waits ~1 s for its timeout. Both assert that something was
