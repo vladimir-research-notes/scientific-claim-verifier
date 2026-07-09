@@ -277,25 +277,46 @@
   exists (its repository map is <em>parsed</em>, not trusted), every relative link in 59 Markdown
   documents and 12 website pages resolves, every <code>claimverifier</code> verb the docs invoke is
   read off the parser itself, every command the CLI exposes is documented somewhere, and — the
-  load-bearing one — <strong>the fifteen headline numbers in <code>docs/REPRODUCIBILITY.md</code>
+  load-bearing one — <strong>the headline numbers in <code>docs/REPRODUCIBILITY.md</code>
   are re-derived from a live suite run</strong>. A document that drifts from the code now fails the
-  build.</p>
+  build. (M13 later added a thirteenth CLI verb and watched this gate go red until the document
+  caught up, which is the only evidence that a gate is wired to anything.)</p>
   <p>Two numbers are deliberately kept <em>out</em> of that table: the test count, because a test
   asserting how many tests exist rots on contact with its own success, and wall-clock timing,
   because a machine-dependent number that a test pins is a test that fails on a slower machine for
   no reason. Nothing on the default path changed, so no verdict, check, rule, or fixture moved, and
   the smoke gate is unchanged.
   <span class="pill ok">122 new tests</span> <span class="pill ok">878 total</span>
-  <span class="pill ok">15 headline numbers, re-derived</span>
+  <span class="pill ok">16 headline numbers, re-derived</span>
   <span class="pill ok">0 broken links</span> <span class="pill ok">ruff clean</span></p>
 
-  <h3>M13 — Final cleanup <span class="pill">planned</span></h3>
-  <p>Run tests, lint, fixture validation, the smoke suite, and report generation; verify no
-  secrets/private papers/large data/caches/paid-API outputs and a clean tree; commit.</p>
+  <h3>M13 — Final cleanup <span class="pill ok">done</span></h3>
+  <p>The plan asks this milestone to run the commands and confirm the repository is clean. Doing
+  only that leaves behind a sentence, and <code>CLAUDE.md</code> does not accept sentences as
+  evidence: every substantive claim needs a test, an example, a trace, a result table, a documented
+  limitation, or an explicit non-goal. <em>"This repository is finished"</em> is a substantive
+  claim. So it is a program — <code>claimverifier final-check</code> — running seventeen checks and
+  exiting 0 only when every one of them passed <strong>and</strong> every one of them ran. A partial
+  run prints <code>INCOMPLETE</code> and exits non-zero, because a gate that skipped two checks and
+  printed <code>PASS</code> would be worse than no gate: it would be believed.</p>
+  <p>Twelve <code>quality-gate</code> checks come from <code>docs/PLAN.md</code> §11. Five
+  <code>hygiene</code> checks come from <code>CLAUDE.md</code>, and read <code>git ls-files</code>
+  rather than the working directory — <code>.gitignore</code> governs what git will <em>add</em>, and
+  says nothing about what is already committed. Every check is fed an input it must reject, by
+  <code>tests/test_final_check.py</code>: a gate that cannot fail proves nothing when it passes.</p>
+  <p>It found two things on the day it was written. A test checked only <code>adapters/*.py</code>
+  for HTTP-client imports while its docstring claimed the whole package; the new audit parses the
+  AST of all 87 modules under <code>src/</code>, <code>scripts/</code>, and <code>tests/</code>, and
+  refuses the dynamic imports that could evade it. And adding one CLI verb broke M12's documentation
+  gate until the doc was updated. What the gate <em>cannot</em> do is written down twice: it cannot
+  prove that nothing was pushed, and it cannot decide that a fixture paper is synthetic.
+  <span class="pill ok">126 new tests</span> <span class="pill ok">1004 total</span>
+  <span class="pill ok">17/17 checks pass</span>
+  <span class="pill ok">0 wrong verdicts</span> <span class="pill ok">ruff clean</span></p>
 
-  <div class="callout">Each milestone also updates this website and writes its milestone,
-  commit, and human-review notes under <code>docs/</code>. Statuses here flip to
-  <span class="pill ok">done</span> as milestones complete.</div>
+  <div class="callout">Every milestone in <code>docs/PLAN.md</code> §9 is complete. Each also
+  updated this website and wrote its milestone, commit, and human-review notes under
+  <code>docs/</code>. The human-review notes are placeholders: no human review has happened.</div>
 </main>
 <footer class="site">scientific-claim-verifier — milestones.</footer>
 </body>

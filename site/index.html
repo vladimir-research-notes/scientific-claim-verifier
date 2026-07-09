@@ -32,7 +32,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 12 complete — portfolio docs, checked by the build</span> &nbsp; <span class="status planned">Milestone 13 next: final cleanup</span></p>
+  <p><span class="status done">status: Milestone 13 complete — the definition of done, as a command</span> &nbsp; <span class="status done">all 13 milestones done</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -72,7 +72,7 @@
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). All twelve commands are live, and the CLI contract in
+  <code>pyyaml</code>). All thirteen commands are live, and the CLI contract in
   <code>docs/PLAN.md</code> §10 is complete.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
@@ -87,6 +87,7 @@ claimverifier run-suite      --out results/runs/   # all 11 tasks, offline, ~1.5
 claimverifier report         --run results/runs/smoke_suite --out results/reports/
 claimverifier export         --format episodes --run results/runs/smoke_suite --out ep.json
 claimverifier replay         --episodes ep.json   # re-runs each episode; gates on drift
+claimverifier final-check                         # the definition of done: 17 checks, exit 0
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
   <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
   the task's gold target — the audit trail is the product, not a side effect:</p>

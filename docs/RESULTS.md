@@ -18,7 +18,8 @@ that do not exist yet are marked pending, not estimated.
 | Reports generated from traces | M9 | 11 reports + index, round trip exact |
 | Integration exports | M11 | 5 formats, byte-stable, no external import |
 | Episode replay | M11 | 11/11 reproduced, byte-identical traces (`--strict`) |
-| Documentation gate | M12 | 15 headline numbers re-derived from a live run |
+| Documentation gate | M12 | 16 headline numbers re-derived from a live run |
+| Final check (definition of done) | M13 | 17 checks, exit 0 |
 
 > **The fixture set grew in M8**, from seven tasks to eleven, so that the smoke suite
 > could reach the labels and statuses the original seven never produced —
@@ -988,7 +989,7 @@ verifies.
 | Every `claimverifier <verb>` the docs invoke is real | verbs taken from the parser itself |
 | Every command the CLI exposes is documented somewhere | the converse direction |
 | Every `scripts/*.py` the docs reference exists | |
-| **The 15 headline numbers in `docs/REPRODUCIBILITY.md`** | **re-derived from a live suite run** |
+| **The 16 headline numbers in `docs/REPRODUCIBILITY.md`** | **re-derived from a live suite run** |
 | Every milestone has its three notes, numbered without gaps | `milestones/`, `commits/`, `review_notes/` |
 | No review note claims a review that has not happened | `CLAUDE.md`'s placeholder contract |
 
@@ -1006,21 +1007,25 @@ made.
 
 ### The headline table is the interesting part
 
-`docs/REPRODUCIBILITY.md` §2 is a Markdown table of fifteen numbers. The test parses it, runs
-the eleven-task suite in-process, derives all fifteen from the run, and asserts equality — plus
+`docs/REPRODUCIBILITY.md` §2 is a Markdown table of sixteen numbers. The test parses it, runs
+the eleven-task suite in-process, derives all sixteen from the run, and asserts equality — plus
 a completeness assertion, so a key silently dropped from the table fails as loudly as a wrong
 value:
 
 | Key | Value | | Key | Value |
 | --- | --- | --- | --- | --- |
-| `tasks` | 11 | | `wrong_verdicts` | **0** |
-| `checks` | 26 | | `conservative_misses` | 1 |
-| `checks_pass` | 20 | | `support_agreement` | 10 |
-| `checks_fail` | 3 | | `reproduction_agreement` | 11 |
-| `checks_inconclusive` | 1 | | `failure_agreement` | 10 |
-| `checks_error` | 1 | | `export_formats` | 5 |
-| `checks_skipped` | 1 | | `cli_commands` | 12 |
-| `scripts_executed` | 3 | | | |
+| `tasks` | 11 | | `conservative_misses` | 1 |
+| `checks` | 26 | | `support_agreement` | 10 |
+| `checks_pass` | 20 | | `reproduction_agreement` | 11 |
+| `checks_fail` | 3 | | `failure_agreement` | 10 |
+| `checks_inconclusive` | 1 | | `export_formats` | 5 |
+| `checks_error` | 1 | | `cli_commands` | 13 |
+| `checks_skipped` | 1 | | `final_checks` | 17 |
+| `scripts_executed` | 3 | | `wrong_verdicts` | **0** |
+
+The table grew by one in M13 (`final_checks`), and `cli_commands` moved from 12 to 13 the
+moment `final-check` was added — the test failed until this document was updated, which is
+the only reason to have written it.
 
 Two numbers are deliberately **absent** from it. The **test count** — a test asserting how many
 tests exist is self-referential and rots on contact with its own success. And **wall-clock
@@ -1031,7 +1036,7 @@ that fails on a slower machine for no reason.
 ### How to read this
 
 **This measures the documentation, not the science.** "59 documents, 0 broken links" says a
-reader will not hit a 404. "15 numbers re-derived" says `docs/REPRODUCIBILITY.md` cannot quietly
+reader will not hit a 404. "16 numbers re-derived" says `docs/REPRODUCIBILITY.md` cannot quietly
 disagree with the pipeline. Neither says anything about whether the verdicts are correct — that
 is what `summary.csv` is for, and nothing in this milestone changed a verdict, a check, a rule,
 or a fixture. The smoke gate is unchanged because **nothing on the default path changed**.
@@ -1042,10 +1047,106 @@ any baseline, and the ablation that could *falsify* this repository's central de
 that separating check `status` from claim `signal` prevents a specific class of error — has not
 been run.
 
+## M13 — the final check, and what it found
+
+`docs/PLAN.md` §11 lists eleven conditions under which this repository is finished, and
+`CLAUDE.md` lists what must never enter it. Both were prose. M13 makes them a program:
+
+```bash
+python3 scripts/08_final_check.py     # or: claimverifier final-check
+```
+
+Seventeen checks, two groups, one exit code. Exit `0` only when every check passed **and**
+every check ran; `1` on a failure or a partial run; `2` when the gate could not run at all.
+
+| Group | Checks | Source |
+| --- | --- | --- |
+| `quality-gate` | 12 | `docs/PLAN.md` §11 — is the system finished? |
+| `hygiene` | 5 | `CLAUDE.md` — did anything enter that never should have? |
+
+Measured on this repository:
+
+| Check | Result |
+| --- | --- |
+| `tests_pass` · `lint_is_clean` | `pytest` exits 0 (1004 passed); `ruff` exits 0 |
+| `nothing_imports_a_network_client` | 87 modules audited, **0** network imports, 1 allowlisted dynamic import |
+| `fixtures_validate` | 12 ok, 0 failed |
+| `smoke_suite_runs_offline` | 11 tasks end to end, gate PASS, **0** wrong verdicts |
+| `reports_render_from_traces` | 11 reports + index, from traces alone |
+| `dataset_statistic_recomputed` | 4 statistics recomputed from committed CSVs |
+| `table_claim_checked` | 4 table values checked |
+| `code_reproduction_executed` | 3 scripts executed in the sandbox, 2 reproduced |
+| `docs_explain_the_system` | 4 required documents, present and linked |
+| `default_path_needs_no_paid_api` | adapter disabled, dry-run, transport-less, $0.00 guard |
+| `working_tree_is_clean` | `git status --porcelain` empty |
+| `no_forbidden_paths` | 192 tracked paths, none forbidden |
+| `no_oversized_files` | largest tracked file ~60 KiB (limit 256 KiB) |
+| `repository_stays_small` | ~1.8 MiB tracked across 192 files (limit 4 MiB) |
+| `no_secret_material` | 192 text files × 8 credential patterns, 0 matches |
+| `no_paid_api_outputs` | 1 model, `recorded-fixture-v1`, regenerates byte-for-byte |
+
+### Hygiene is checked against what git tracks
+
+`.gitignore` governs what git will *add*. It says nothing about what is already committed,
+and a rule written after the fact does not retract a file. So the hygiene checks read
+`git ls-files -z` — the set that can actually leak — rather than the working directory.
+
+### The gate found two things
+
+**A test was narrower than the docstring it substantiated.**
+`tests/test_adapters.py::test_no_adapter_module_imports_an_http_client` scans `adapters/*.py`
+by substring. The docstring it supports says *no module in this package* imports an HTTP
+client. That stronger claim was true and unchecked. `nothing_imports_a_network_client` now
+parses the AST of all 87 modules under `src/`, `scripts/`, and `tests/` — and, because an
+import audit only sees import statements, additionally refuses `importlib`, `__import__`,
+`exec`, `eval`, and `compile` anywhere on that path unless the site is allowlisted **with a
+reason**. Exactly one is: `envcheck.py`, which probes for the optional analysis libraries.
+
+Parsing rather than grepping is what makes the audit correct. `sandbox/policy.py` contains
+the text `import socket` inside `SITECUSTOMIZE_SOURCE`, a *string* of Python the sandboxed
+child runs in order to disable `socket`. A substring scan would flag it. An AST walk does
+not, because the parent never imports it — and `test_audit_module_ignores_a_network_name_inside_a_string`
+pins that distinction.
+
+**Adding one CLI verb broke the M12 documentation gate**, exactly as designed:
+`cli_commands` moved from 12 to 13 and `test_reproducibility_headline_numbers_match_the_live_pipeline`
+failed until `docs/REPRODUCIBILITY.md` was updated. A gate whose failure is inconvenient is
+a gate that works.
+
+### Every check is shown to be able to fail
+
+`tests/test_final_check.py` (120 tests) hands each check an input it must reject: a tracked
+`.env`, an oversized file, a planted credential, a tracked response cache, a dirty porcelain,
+a failing validation report, a three-task suite, an inapplicable suite gate, a `skipped`
+script, an empty trace directory, a malformed trace, a deleted document, an emptied one, an
+orphaned one, a module importing `socket`, an unlisted dynamic import, a stale allowlist
+entry, a priced vendor model, and an `httpx` dependency in `pyproject.toml`.
+
+The secret scanner is not exempt from itself. Its own source and its own test are scanned
+like every other tracked file, which works because the eight patterns are regexes that do
+not match their own source text, and because the fake credentials the tests use are
+assembled from fragments at run time. A scanner that skips its own source is a scanner with
+a place to hide a key.
+
+### How to read this
+
+**"17 checks pass" is a statement about this repository, not about claim verification.**
+It says the tests run, the fixtures validate, the suite gates, the reports render, no
+network client is imported, no credential-shaped string is committed, and the tree is clean.
+It says nothing about whether a verdict is correct — `summary.csv` and `wrong_verdicts` are
+for that, and nothing in M13 changed a verdict, a check, a rule, or a fixture.
+
+Four things the gate cannot do are stated in `docs/FINAL_CHECK.md` and in the module's own
+docstring. The two permanent ones: it **cannot prove that nothing was pushed** (a gate cannot
+certify the absence of an act it is forbidden to observe; `CLAUDE.md` denies `git push` and
+`git remote`, and the sandbox, not this file, is what enforces it), and it **cannot decide
+that a fixture paper is synthetic** — that is a judgment about provenance, and the gate
+checks only its mechanical shadow.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 878 passed
+python3 -m pytest -q     # 1004 passed
 ruff check .             # all checks passed
 ```
 
@@ -1064,6 +1165,7 @@ ruff check .             # all checks passed
 | M10 | 70 | 670 |
 | M11 | 86 | 756 |
 | M12 | 122 | 878 |
+| M13 | 126 | 1004 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
 used anywhere in the default path. M5's, M6's, M8's, M9's, M11's, and M12's tests execute
@@ -1076,6 +1178,14 @@ M12's 122 tests are mostly parametrized over files — one per Markdown document
 website page, one per milestone note — so the count reflects the size of the repository's
 documentation rather than the depth of any single assertion. The load-bearing one is
 `test_reproducibility_headline_numbers_match_the_live_pipeline`, which runs the suite once.
+
+M13 adds 126: 120 in `tests/test_final_check.py`, and 6 more for free as M12's documentation
+gate parametrized itself over the milestone's new Markdown files. The 120 are mostly
+*sensitivity* tests — for each of the seventeen checks, an input that must be rejected. They
+run the suite twice more (once for the live gate, once for the report-rendering check) and
+shell out to `git`, but never to `pytest`: `final_check.tests_pass` raises `RecursionRefused`
+when called from inside a test process, and
+`test_tests_pass_refuses_to_spawn_pytest_from_inside_pytest` asserts it.
 
 Two tests are load-bearing on the wall clock: the CPU-limit test burns ~1 CPU-second
 and the process-group test waits ~1 s for its timeout. Both assert that something was

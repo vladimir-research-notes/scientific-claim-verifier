@@ -57,7 +57,8 @@ If the pipeline's behaviour changes and this table is not updated, that test fai
 | `reproduction_agreement` | 11 | `claimverifier run-suite` |
 | `failure_agreement` | 10 | `claimverifier run-suite` |
 | `export_formats` | 5 | `claimverifier export --list` |
-| `cli_commands` | 12 | `claimverifier --help` |
+| `cli_commands` | 13 | `claimverifier --help` |
+| `final_checks` | 17 | `claimverifier final-check` |
 
 Two of these are the ones to read. **`wrong_verdicts` is 0**: the pipeline has never
 asserted a support label its own fixtures deny. **`conservative_misses` is 1**: it
@@ -74,11 +75,16 @@ Run in this order; each is independent and offline.
 ### Everything at once
 
 ```bash
-python3 -m pytest -q                        # 878 tests, CPU-only, offline
+python3 -m pytest -q                        # 1004 tests, CPU-only, offline
 python3 -m ruff check .                     # lint
 python3 scripts/01_validate_fixtures.py     # 11 tasks + 1 suite valid
 python3 scripts/05_run_smoke_suite.py --out results/runs/    # the gate; exit 0
+python3 scripts/08_final_check.py           # all four, plus hygiene; 17 checks, exit 0
 ```
+
+The last command runs the other four and eleven more, and is the only one whose subject is
+the repository rather than a claim. It is what `docs/PLAN.md` §11 means by "done", made
+executable — see `docs/FINAL_CHECK.md`, including the four things it cannot check.
 
 ### `docs/RESULTS.md` §M2 — fixture validation
 

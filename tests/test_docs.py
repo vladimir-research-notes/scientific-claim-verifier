@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from scientific_claim_verifier import cli, suite
+from scientific_claim_verifier import cli, final_check, suite
 from scientific_claim_verifier.artifacts import loader
 from scientific_claim_verifier.integrations import REGISTRY
 
@@ -135,6 +135,7 @@ def live_numbers(suite_run: suite.SuiteRun) -> dict[str, int]:
         "failure_agreement": summary.failure_agreement,
         "export_formats": len(REGISTRY),
         "cli_commands": len(cli_verbs()),
+        "final_checks": len(final_check.CHECKS),
     }
 
 

@@ -164,14 +164,40 @@
   <p>The default path is fully deterministic and free. Optional LLM adapters exist but are
   disabled, and the paid path is inert <strong>by construction</strong> rather than by configuration:
   a live call requires four independent acts, and the repo ships neither a price table nor an HTTP
-  transport (a test asserts no module under <code>adapters/</code> and no declared dependency imports
-  one). The recorded adapter's <code>30/32</code> measures that a request is fingerprinted, replayed,
-  parsed, and scored faithfully — and <strong>nothing at all</strong> about any model's ability to
-  extract a claim. No API was called; no language model produced those responses.</p>
+  transport. Since M13 the transport claim is checked across the whole repository rather than only
+  <code>adapters/</code>: an AST audit parses all 87 modules under <code>src/</code>,
+  <code>scripts/</code>, and <code>tests/</code>. The recorded adapter's <code>30/32</code> measures
+  that a request is fingerprinted, replayed, parsed, and scored faithfully — and <strong>nothing at
+  all</strong> about any model's ability to extract a claim. No API was called; no language model
+  produced those responses.</p>
 
-  <p>See also <a href="safety.html">Safety</a> for scope boundaries, and
-  <code>docs/PAPER_PATH.md</code> for what would have to be true before any of this repository's
-  numbers were a claim about the world.</p>
+  <h2>The final check bounds the repository, not the world</h2>
+  <p><code>claimverifier final-check</code> turns <code>docs/PLAN.md</code> §11 and
+  <code>CLAUDE.md</code>'s hygiene rules into seventeen checks with an exit code. Four things it does
+  not do, two of them permanently.</p>
+  <p><strong>It cannot prove that nothing was pushed.</strong> §11 asks for a clean tree <em>and</em>
+  an unpushed history. The gate checks the tree. It contacts no remote and inspects no remote ref,
+  because the permission policy denies <code>git push</code> and <code>git remote</code> outright — a
+  gate cannot certify the absence of an act it is forbidden to observe. That absence is enforced by
+  the sandbox the agent runs in, not by any file in this repository.</p>
+  <p><strong>It cannot decide that a fixture is synthetic.</strong> That is a judgment about
+  provenance. The gate checks the mechanical shadow of it — every tracked file is small, none matches
+  one of eight credential patterns, and the only committed model responses regenerate byte-for-byte
+  from committed source. A real paper, small and free of credentials, would pass.</p>
+  <p><strong>The import audit sees statements, not behaviour.</strong> It parses imports, and refuses
+  the dynamic-import mechanisms that could evade it unless the site is allowlisted with a written
+  reason (exactly one is). Together those bound the <em>parent</em> process. They say nothing about a
+  child process, and nothing about a raw syscall. Relatedly, the sandbox's child imports
+  <code>socket</code> on purpose, from a <em>string</em> of Python the parent never runs, in order to
+  disable it — so an AST audit correctly does not see it, and a substring scan would be wrong about
+  what it found.</p>
+  <p><strong>And it is not a measure of correctness.</strong> "17 checks pass" says the tests run, the
+  fixtures validate, the suite gates, the reports render, and nothing forbidden is committed. It says
+  nothing about whether a verdict is right.</p>
+
+  <p>See also <a href="safety.html">Safety</a> for scope boundaries,
+  <code>docs/FINAL_CHECK.md</code> for the gate in full, and <code>docs/PAPER_PATH.md</code> for what
+  would have to be true before any of this repository's numbers were a claim about the world.</p>
 </main>
 <footer class="site">scientific-claim-verifier — limitations.</footer>
 </body>

@@ -17,6 +17,7 @@ Commands online so far:
 - ``claimverifier report``             — render reports from a run's traces (M9).
 - ``claimverifier export``             — write a run in an integration contract (M11).
 - ``claimverifier replay``             — re-run recorded episodes and check for drift (M11).
+- ``claimverifier final-check``        — check the definition of done, mechanically (M13).
 
 ``link-evidence``, ``run-checks``, and ``run-sandbox`` are additions beyond the
 ``docs/PLAN.md`` section 10 contract: that section lists the end-to-end verbs, but a
@@ -31,13 +32,18 @@ can be produced from an archived run whose artifacts are long gone.
 ``export`` and ``replay`` are the two directions of Milestone 11's integration contracts.
 ``export`` is a function of committed artifacts, exactly as ``report`` is; ``replay`` is
 the only verb that re-runs the pipeline to check that a recorded episode still holds.
+
+``final-check`` is the last verb and the only one whose subject is the repository rather
+than a claim. It runs every condition ``docs/PLAN.md`` §11 places on a finished project
+and every rule ``CLAUDE.md`` places on a committed one, so that "done" is a command with
+an exit code instead of a sentence in a report.
 """
 
 from __future__ import annotations
 
 import argparse
 
-from . import __version__, envcheck, suite
+from . import __version__, envcheck, final_check, suite
 from .artifacts import validation
 from .checks import verification
 from .claims import extraction, linking
@@ -58,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Live commands: `check-env`, `version`, `validate-fixtures`, "
             "`extract-claims`, `link-evidence`, `run-checks`, `run-sandbox`, `verify`, "
-            "`run-suite`, `report`, `export`, `replay` (see docs/PLAN.md)."
+            "`run-suite`, `report`, `export`, `replay`, `final-check` (see docs/PLAN.md)."
         ),
     )
     parser.add_argument(
@@ -141,6 +147,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Re-run recorded episodes and check the pipeline still agrees with them.",
     )
     episodes.add_replay_arguments(replay_parser)
+
+    final = subparsers.add_parser(
+        "final-check",
+        help="Check every condition in docs/PLAN.md §11 and CLAUDE.md (offline).",
+    )
+    final_check.add_final_check_arguments(final)
 
     return parser
 
@@ -230,6 +242,12 @@ def main(argv: list[str] | None = None) -> int:
             as_json=args.json,
             strict=args.strict,
             enforce_gate=not args.no_gate,
+        )
+    if args.command == "final-check":
+        return final_check.check_and_report(
+            repo_root=args.repo_root,
+            subprocess_checks=not args.no_subprocess,
+            as_json=args.json,
         )
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is

@@ -11,7 +11,8 @@ a JSONL trace.
 
 Eleven tasks run end to end on one CPU in ~1.5 s, offline and free, with **zero wrong
 verdicts**. All eleven replay to the verdict they recorded, byte-identical traces
-included. 878 tests, no network, no paid API.
+included. 1004 tests, no network, no paid API. `claimverifier final-check` runs the
+project's own definition of done — seventeen checks with an exit code.
 
 This is **not** a paper summarizer, **not** a learning demo, and **not** an oracle of
 scientific truth. Verdicts are relative to the supplied artifacts. It is a small but real
@@ -48,7 +49,7 @@ pipeline stage at all.
 pip install -e .
 
 # CPU-only, offline tests (import the package straight from src/, no install needed)
-python3 -m pytest -q                                        # 878 passed
+python3 -m pytest -q                                        # 1004 passed
 
 # The whole pipeline over every committed task: 11 claims, offline, ~1.5 s
 python3 scripts/05_run_smoke_suite.py --out results/runs/   # or: claimverifier run-suite
@@ -222,15 +223,21 @@ of headline numbers that **a test re-derives from a live suite run**, so a docum
 from the code fails the build.
 
 ```bash
-python3 -m pytest -q                        # 878 tests, CPU-only, offline
+python3 -m pytest -q                        # 1004 tests, CPU-only, offline
 python3 -m ruff check .                     # lint
 python3 scripts/01_validate_fixtures.py     # 11 tasks + 1 suite valid
 python3 scripts/05_run_smoke_suite.py       # the gate; exit 0
+python3 scripts/08_final_check.py           # all four, plus repository hygiene; exit 0
 ```
+
+The last command is the project's own definition of done: the seventeen conditions
+`docs/PLAN.md` §11 places on a finished repository and `CLAUDE.md` places on a committed
+one, each with an exit code rather than a sentence. See
+[`docs/FINAL_CHECK.md`](docs/FINAL_CHECK.md), including the four things it cannot check.
 
 ## CLI
 
-All twelve commands are live; the CLI contract in `docs/PLAN.md` §10 is complete.
+All thirteen commands are live; the CLI contract in `docs/PLAN.md` §10 is complete.
 
 | Command | What it does |
 | --- | --- |
@@ -245,6 +252,7 @@ All twelve commands are live; the CLI contract in `docs/PLAN.md` §10 is complet
 | `report` | render a claim as Markdown/HTML **from its trace alone** |
 | `export` | one of five versioned, self-describing formats |
 | `replay` | re-run recorded episodes and gate on drift |
+| `final-check` | the project's definition of done: 17 checks, one exit code |
 
 A few that repay explanation:
 
@@ -404,6 +412,7 @@ tests/                           CPU-only offline tests
 | [`docs/ADAPTERS.md`](docs/ADAPTERS.md) · [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) | the disabled LLM adapters; the five export contracts |
 | [`docs/RESULTS.md`](docs/RESULTS.md) | every measured number, and how to read it |
 | [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) | how to re-derive all of them offline |
+| [`docs/FINAL_CHECK.md`](docs/FINAL_CHECK.md) | the definition of done, and the four things it cannot check |
 | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) · [`docs/SAFETY.md`](docs/SAFETY.md) | what it cannot do; the permanent scope contract |
 | [`docs/PAPER_PATH.md`](docs/PAPER_PATH.md) | what would have to be true to publish any of it |
 

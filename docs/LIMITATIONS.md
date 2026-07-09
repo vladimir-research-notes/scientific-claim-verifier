@@ -231,15 +231,60 @@ returns it disabled, in dry-run, with a `$0.00` cost guard and **no transport**.
 
 A live call requires four independent acts — flip `enabled`, set `SCV_ENABLE_PAID_API=1`,
 register a price for the model (the repo ships none), and inject an HTTP transport (the repo
-ships none, and a test asserts no module under `adapters/` and no declared dependency imports
-one).
+ships none, and no declared dependency provides one). Since M13, the transport claim is
+checked across the whole repository rather than only `adapters/`: `final_check`'s
+`nothing_imports_a_network_client` parses the AST of all 87 modules under `src/`, `scripts/`,
+and `tests/`. Its limits are §8 below.
 
 The recorded adapter's `30/32` measures exactly one thing: that a request is fingerprinted,
 replayed, parsed, and scored faithfully. It says **nothing at all** about any model's ability
 to extract a claim. No API was called and no language model produced those responses; the
 model name `recorded-fixture-v1` is fictitious so the fixture cannot imply otherwise.
 
-## 8. Permanent non-goals
+## 8. The final check bounds the repository, not the world
+
+`claimverifier final-check` (M13, `docs/FINAL_CHECK.md`) turns `docs/PLAN.md` §11 and
+`CLAUDE.md`'s hygiene rules into seventeen checks with an exit code. Four things it does not
+do, two of them permanently.
+
+### It cannot prove that nothing was pushed
+
+§11 asks for a clean tree *and* an unpushed history. The gate checks the tree. It contacts no
+remote and inspects no remote ref, because `CLAUDE.md`'s permission policy denies `git push`
+and `git remote` outright — so it cannot certify the absence of an act it is forbidden to
+observe. That absence is enforced by the sandbox the agent runs in, not by any file in this
+repository. **Permanent.**
+
+### It cannot decide that a fixture is synthetic
+
+"Fixtures are synthetic or open" is a judgment about provenance, and no program makes it. The
+gate checks the mechanical shadow of it: every tracked file is small, none matches one of
+eight credential patterns, and the only committed model responses regenerate byte-for-byte
+from committed source. A real paper, small and free of credentials, would pass. **Permanent.**
+
+### The import audit sees statements, not behaviour
+
+`nothing_imports_a_network_client` parses import statements. Because an audit that reads only
+imports can be evaded by a dynamic one, the gate also refuses `importlib`, `__import__`,
+`exec`, `eval`, and `compile` anywhere on the audited path unless the site is allowlisted with
+a written reason — exactly one is, `envcheck.py`. Together these bound the **parent process**.
+They say nothing about a child process, and nothing about a raw syscall.
+
+### It says nothing about the sandbox's child
+
+`sandbox/policy.py` ships `SITECUSTOMIZE_SOURCE`: a *string* of Python that the sandboxed child
+executes at startup, importing `socket` in order to replace its entry points with stubs that
+raise. An AST audit does not look inside string constants, and correctly does not flag it — the
+parent never runs that code. That guard remains cooperative and in-process, exactly as §3 says.
+The final check neither restates that claim nor strengthens it.
+
+### And it is not a measure of correctness
+
+"17 checks pass" says the tests run, the fixtures validate, the suite gates, the reports render,
+and nothing forbidden is committed. It says nothing about whether a verdict is right. That is
+what `wrong_verdicts` is for, and §4 explains why even that number is not a benchmark result.
+
+## 9. Permanent non-goals
 
 These are not gaps to be filled later. They are the boundary of the project
 (`docs/SAFETY.md`):
@@ -258,4 +303,5 @@ These are not gaps to be filled later. They are the boundary of the project
 - `docs/SAFETY.md` — the scope contract and why it is permanent
 - `docs/METHODOLOGY.md` — the design commitments these limits follow from
 - `docs/RESULTS.md` — every measured number, with the command beside it
+- `docs/FINAL_CHECK.md` — the definition of done, and what checking it cannot establish
 - `docs/PAPER_PATH.md` — what would have to be true to publish any of this

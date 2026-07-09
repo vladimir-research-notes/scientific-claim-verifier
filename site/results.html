@@ -497,16 +497,50 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
 
   <h2>These numbers cannot quietly rot</h2>
   <p>Every number on this page is reproducible offline on one CPU, with the exact command beside it
-  in <code>docs/REPRODUCIBILITY.md</code>. That document carries a table of fifteen headline numbers
+  in <code>docs/REPRODUCIBILITY.md</code>. That document carries a table of sixteen headline numbers
   — tasks, checks by status, scripts executed, gold agreement, <strong>wrong verdicts</strong>,
-  conservative misses, export formats, CLI commands — and a test <strong>re-derives every one of
-  them from a live suite run</strong>. A document that drifts from the pipeline fails the build,
-  rather than waiting for a reader to notice.</p>
+  conservative misses, export formats, CLI commands, final checks — and a test <strong>re-derives
+  every one of them from a live suite run</strong>. A document that drifts from the pipeline fails
+  the build, rather than waiting for a reader to notice. It has done so once already: adding the
+  <code>final-check</code> verb in M13 moved <code>cli_commands</code> from 12 to 13 and turned the
+  build red until the document caught up.</p>
   <p>Two numbers are deliberately absent from that table. The <strong>test count</strong>: a test
   asserting how many tests exist is self-referential and rots on contact with its own success. And
-  <strong>wall-clock timing</strong> — roughly 1.5 s for the suite, 23 s for the tests — reported as
+  <strong>wall-clock timing</strong> — roughly 1.5 s for the suite, 27 s for the tests — reported as
   an approximation everywhere and asserted nowhere, because a machine-dependent number that a test
   pins is a test that fails on a slower machine for no reason.</p>
+
+  <h2>M13 — the definition of done, as a command</h2>
+  <p><code>docs/PLAN.md</code> §11 lists eleven conditions under which this repository is finished,
+  and <code>CLAUDE.md</code> lists what must never enter it. Both were prose, and prose does not fail
+  a build. <code>claimverifier final-check</code> runs them: <strong>seventeen checks, one exit
+  code</strong>, zero only when every check passed <em>and</em> every check ran.</p>
+  <pre><code>$ python3 scripts/08_final_check.py
+
+Quality gates — docs/PLAN.md §11
+  [pass] nothing_imports_a_network_client
+         87 module(s) audited, 0 network imports, 1 allowlisted dynamic-import site(s)
+  [pass] smoke_suite_runs_offline
+         11 task(s) end to end, gate PASS, 0 wrong verdict(s)
+  ... (10 more)
+
+Hygiene — CLAUDE.md
+  [pass] no_secret_material
+         192 tracked text file(s) scanned against 8 credential pattern(s)
+  ... (4 more)
+
+Checks    : 17/17 run, 0 failed
+Overall   : PASS</code></pre>
+  <p>Hygiene is checked against <strong>what git tracks</strong>, not the working directory:
+  <code>.gitignore</code> governs what git will <em>add</em>, and says nothing about what is already
+  committed. Every check is fed an input it must reject, by <code>tests/test_final_check.py</code> —
+  a gate that cannot fail proves nothing when it passes.</p>
+  <p><strong>"17 checks pass" is a statement about this repository, not about claim verification.</strong>
+  It says the tests run, the fixtures validate, the suite gates, the reports render, no network client
+  is imported, no credential-shaped string is committed, and the tree is clean. It says nothing about
+  whether a verdict is correct — that is what <code>wrong_verdicts</code> is for. Two things the gate
+  can never do: prove that nothing was pushed, and decide that a fixture paper is synthetic. See
+  <a href="limitations.html">Limitations</a>.</p>
 
   <div class="callout">Results are reproducible: <code>docs/REPRODUCIBILITY.md</code> gives the exact
   command for every number here, and they run offline on <code>m5.2xlarge</code> with no GPU, no
