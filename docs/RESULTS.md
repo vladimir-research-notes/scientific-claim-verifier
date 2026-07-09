@@ -15,6 +15,7 @@ that do not exist yet are marked pending, not estimated.
 | Sandbox reproduction | M6 | measured below |
 | Support labels / failure modes | M7 | measured below |
 | Smoke suite (8–15 tasks, end to end) | M8 | 11 tasks, gate PASS |
+| Reports generated from traces | M9 | 11 reports + index, round trip exact |
 
 > **The fixture set grew in M8**, from seven tasks to eleven, so that the smoke suite
 > could reach the labels and statuses the original seven never produced —
@@ -677,10 +678,118 @@ accuracy.
 Markdown and HTML **reports** are Milestone 9's. M8 emits machine-readable artifacts and
 one rendered text summary; nothing here formats a report.
 
+## M9 — reports, rendered from traces
+
+```bash
+python3 -m pytest tests/test_reports.py -q                                    # 98 tests
+claimverifier report --run results/runs/smoke_suite --out results/reports/    # 11 + index
+python3 scripts/04_generate_report.py --run results/runs/smoke_suite --format both --out results/reports/
+```
+
+Eleven auditable reports and an index, rendered from the eleven JSONL traces the smoke
+suite wrote — about 5 KB of Markdown per claim, in under a tenth of a second, reading
+nothing but the traces.
+
+| | |
+| --- | --- |
+| Reports rendered | 11 + index, from 11 traces |
+| Pipeline stages the renderer imports | **0** |
+| Artifacts re-opened · checks re-run | **0** · **0** |
+| Round trip (trace → `ScoredClaim`) | **exact on 11/11** — result, rules, signals, claim |
+| Two run directories, reports beside traces | **byte-identical**; no absolute path in either |
+| Formats | Markdown, and standalone HTML (no stylesheet, no JS, no network fetch) |
+| Refusal tests | 12 (truncated, reordered, duplicated, foreign, schema-violating, …) |
+
+### The round trip is the result
+
+`docs/PLAN.md` §11 requires that *reports are generated from traces*. The only thing
+separating that requirement from a slogan is a test that fails when it stops being true.
+So `tests/test_reports.py` scores every committed fixture, writes its trace, reads it back
+through `reports.reader`, and asserts the reconstructed M7 `ScoredClaim` **equals** the
+original — result, the three named rules, every per-check signal, and the extracted claim.
+If a later milestone records a fact in a result but not in its trace, the build breaks.
+
+The renderer imports no pipeline stage, opens no artifact, re-runs no check, and does not
+read `result.json`. A test deletes `result.json`, moves the lone trace into an empty
+directory, and renders from it. A run archived months ago, whose papers and CSVs are long
+gone, still reports.
+
+### What had to change, and it was not the reader
+
+`RunTrace.to_jsonl()` serializes the event stream and nothing else. A trace's `run_id`,
+`task_id`, and `bundle_id` are real fields on the model that survived on disk **only in
+the filename**, and `scoring.claim` recorded five of the extracted claim's fields rather
+than all of them. A generator that claimed to "read the trace" would have been reading the
+trace plus a guess about the path.
+
+`SCHEMA_VERSION` moved `1.2` → `1.3`. **No model changed**; the event contract did. A
+`scoring.run` event now opens every stream (`run_id`, `task_id`, `bundle_id`,
+`schema_version`), `scoring.claim` carries the whole claim minus its evidence links (which
+`scoring.evidence` already records — one fact, one place), and `scoring.result` no longer
+repeats the version. The reader compares the **major** component: a `1.9` trace reads, a
+`2.0` trace is refused, and a pre-`1.3` trace is refused *with an instruction* rather than
+guessed at from its filename.
+
+### Refusing to render is a feature
+
+Twelve of the 98 tests assert that a bad trace produces a `ReportError` naming the file,
+not a plausible-looking report: missing, empty, non-JSONL, truncated, reordered,
+duplicated, foreign (a `sandbox.*` stream), schema-violating (`confidence: 7.0`), and
+written under a future major version. Every object is re-validated through its pydantic
+model on the way in, so the report cannot show a value the schema forbids.
+
+`report` exits **0** on a `contradicted` claim, as `verify` does — reporting a
+contradiction is the tool working.
+
+### Worked example
+
+The flagship fixture, abridged. `contradicted_f1`'s abstract asserts a number its own
+results table denies, and the report keeps the two in **different sections**:
+
+```markdown
+## 2. Supporting text (retrieved evidence)
+
+> Method B reaches an F1 score of 91.0 on MNLI.
+
+- passage p_claim · score 1.000 · match=declared_source_passage; overlap=1.000; rank=1
+
+## 3. Computed checks
+
+| Status | Check | Target | Computed | Expected | Tolerance | Signal |
+| --- | --- | --- | --- | --- | --- | --- |
+| pass | evidence_presence | p_claim | verbatim | — | — | supports |
+| fail | table_value | t_mnli[col=f1] | 86.0 | 91.0 | 0.05 | refutes |
+
+## 4. Inference
+
+- support_label: contradicted
+  rule: artifacts_refute [c_contradicted_f1.table_value.1]
+  because: the table does not hold the claimed value
+```
+
+Two columns that a lesser tool would make one: a check's **status** is a fact about the
+check, its **signal** is what the check says about the *claim*, and one status maps to
+more than one signal. An `evidence_presence` check that fails because the passage never
+*mentions* the claim signals `undecided`, not `refutes` — silence is not refutation.
+
+`synthetic_data_passage`'s report is the other one worth reading. It prints
+`unverifiable_from_artifacts`, `confidence 0.00`, and the exact reason it could not decide
+(`40% token coverage, missing ['model', 'only', 'trained']`). The word `contradicted`
+appears nowhere in it, and a test asserts that.
+
+### How to read this
+
+**The measured facts here are structural, not scientific.** "11 reports rendered" says the
+renderer runs; "round trip exact on 11/11" says the trace is a complete record of the
+verdict. Neither says anything about whether the verdicts are correct — that is what
+`summary.csv` is for, and a report deliberately never prints its task's gold outcome (see
+`docs/REPORTS.md` §6). A report that scored itself would be answering a different
+question.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 500 passed
+python3 -m pytest -q     # 600 passed
 ruff check .             # all checks passed
 ```
 
@@ -695,9 +804,10 @@ ruff check .             # all checks passed
 | M6 | 61 | 346 |
 | M7 | 106 | 452 |
 | M8 | 48 | 500 |
+| M9 | 100 | 600 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
-used anywhere in the default path. M5's, M6's, and M8's tests execute committed,
+used anywhere in the default path. M5's, M6's, M8's, and M9's tests execute committed,
 stdlib-only fixture scripts (plus a few written by the tests themselves) as child
 processes — local, harmless, and offline. The socket tests either construct a socket or
 are refused before one exists; none of them connects to anything.

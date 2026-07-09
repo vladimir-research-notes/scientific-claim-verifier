@@ -31,7 +31,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 8 complete — offline smoke suite</span> &nbsp; <span class="status planned">Milestone 9 next: reports</span></p>
+  <p><span class="status done">status: Milestone 9 complete — auditable reports, rendered from traces</span> &nbsp; <span class="status planned">Milestone 10 next: optional LLM adapters</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -71,7 +71,8 @@
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). Nine commands are live now; only <code>report</code> is still to come.</p>
+  <code>pyyaml</code>). All ten commands are live, and the CLI contract in
+  <code>docs/PLAN.md</code> §10 is complete.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
 claimverifier check-env          # offline interpreter + library self-check
@@ -82,6 +83,7 @@ claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
 claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.yaml
 claimverifier verify         --task tasks/ml_claims/underspecified_split.yaml
 claimverifier run-suite      --out results/runs/   # all 11 tasks, offline, ~1.5 s
+claimverifier report         --run results/runs/smoke_suite --out results/reports/
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
   <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
   the task's gold target — the audit trail is the product, not a side effect:</p>
@@ -227,6 +229,21 @@ Gate            : PASS</code></pre>
   <p>The gate is tested by <em>injecting</em> each failure in turn — a wrong verdict, a new
   conservative miss, a stale declared miss — and asserting it rejects the run. A gate that never
   fails proves nothing when it passes.</p>
+
+  <h2>The report is a function of the trace</h2>
+  <p><code>claimverifier report</code> renders each claim as Markdown (or standalone HTML) with the
+  five channels in numbered sections — extracted claim, supporting text, computed check, inference,
+  unverifiable — plus a link to the JSONL trace it came from. It does not import the extractor, the
+  linker, the checks, or the sandbox. It reads one <code>&lt;task_id&gt;.trace.jsonl</code> and
+  reconstructs the scored claim from it, re-validating every object against the schema on the way
+  in, so a corrupt trace <em>raises</em> rather than rendering into a plausible-looking report.</p>
+  <pre><code>$ claimverifier report --run results/runs/smoke_suite --out results/reports/
+wrote 12 file(s) for 11 claim(s) from results/runs/smoke_suite</code></pre>
+  <p>A run archived months ago, whose papers and CSVs are long gone, still reports. That is a claim
+  worth testing rather than asserting, so a test scores every committed fixture, writes its trace,
+  reads it back, and asserts the reconstruction <strong>equals</strong> the original result, rules,
+  and signals. A trace that cannot be turned back into the verdict it recorded is not an audit
+  record — it is a log. See the <a href="example-report.html">Example report</a>.</p>
 
   <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
   the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>

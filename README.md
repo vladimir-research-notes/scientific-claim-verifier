@@ -22,10 +22,11 @@ is a small but real reproducibility tool and benchmark platform. See
 > are in place: a claim can be extracted, linked to the exact cell/column/script that
 > bears on it, checked against those artifacts, its script executed under a recorded
 > policy, and the whole thing scored into a support label, a reproduction status, and a
-> failure mode — with a JSONL trace at every step. **Eleven tasks run end to end on a CPU
-> in ~1.5 s with zero wrong verdicts.** Markdown/HTML reports are Milestone 9. The
-> remaining subsystems are built milestone by milestone — see below. This README is
-> upgraded to portfolio quality in Milestone 12.
+> failure mode — with a JSONL trace at every step, and an auditable Markdown/HTML report
+> rendered back out of that trace. **Eleven tasks run end to end on a CPU in ~1.5 s with
+> zero wrong verdicts**, and all ten commands in the CLI contract are live. The remaining
+> subsystems are built milestone by milestone — see below. This README is upgraded to
+> portfolio quality in Milestone 12.
 
 ## Quickstart
 
@@ -41,6 +42,9 @@ python3 -m pytest -q
 
 # The whole pipeline over every committed task: 11 claims, offline, ~1.5 s
 python3 scripts/05_run_smoke_suite.py --out results/runs/   # or: claimverifier run-suite
+
+# An auditable report per claim, rendered from the traces that run just wrote
+python3 scripts/04_generate_report.py --run results/runs/smoke_suite --out results/reports/
 ```
 
 ## Why not just summarize?
@@ -139,15 +143,25 @@ wrong verdicts, so it cannot bless one. A change that raises label accuracy by t
 claim the pipeline honestly declined to decide into one it decides *wrongly* has made the
 tool worse, and a single accuracy number would have called it an improvement.
 
-Target (lands with its subsystem — see the milestones):
+`report` renders each claim as Markdown (or standalone HTML) with the five audit channels
+in numbered sections, plus a link to the JSONL trace it came from:
 
 ```bash
-claimverifier report        --run results/runs/<run_id> --out results/reports/<run_id>.md
+claimverifier report        --run results/runs/smoke_suite --out results/reports/
+claimverifier report        --run results/runs/smoke_suite/contradicted_f1.trace.jsonl
 ```
 
-An unimplemented command fails loudly rather than pretending to work. `run-checks`
-is deliberately not `verify`: it computes checks and stops, while `verify` draws the
-inference the checks are forbidden to draw.
+**A report is a function of its trace.** The renderer imports no pipeline stage, opens no
+artifact, re-runs no check, and never reads `result.json`; it reconstructs the scored
+claim from the JSONL bytes, re-validating every object against the schema on the way in,
+so a corrupt trace raises rather than rendering into a plausible-looking report. A run
+archived months ago — whose papers and CSVs are long gone — still reports. A test scores
+every committed fixture, writes its trace, reads it back, and asserts the reconstruction
+*equals* the original, because a trace that cannot be turned back into the verdict it
+recorded is not an audit record but a log. See [`docs/REPORTS.md`](docs/REPORTS.md).
+
+`run-checks` is deliberately not `verify`: it computes checks and stops, while `verify`
+draws the inference the checks are forbidden to draw.
 
 ## Building the system (milestone runner)
 

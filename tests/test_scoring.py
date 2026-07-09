@@ -567,6 +567,7 @@ def test_the_trace_holds_every_stage_in_order() -> None:
     trace = V.build_trace(scored, claim, run_id="r", task_id="t", bundle_id="b")
     kinds = [event.kind for event in trace.events]
     assert kinds == [
+        "scoring.run",
         "scoring.claim",
         "scoring.evidence",
         "scoring.check",
@@ -577,8 +578,36 @@ def test_the_trace_holds_every_stage_in_order() -> None:
         "scoring.result",
     ]
     assert set(kinds) <= set(V.SCORING_EVENT_KINDS)
-    assert trace.schema_version == "1.2"
+    assert trace.schema_version == "1.3"
     assert [event.seq for event in trace.events] == list(range(len(trace.events)))
+
+
+def test_the_trace_opens_by_naming_the_run_it_records() -> None:
+    # `RunTrace.to_jsonl` serializes events only, so without this event a reader of an
+    # archived trace could recover the run's identity from nothing but the filename.
+    _, claim, scored = verify("contradicted_f1")
+    trace = V.build_trace(scored, claim, run_id="r", task_id="t", bundle_id="b")
+    run = trace.events[0]
+    assert run.kind == "scoring.run"
+    assert run.data == {
+        "run_id": "r",
+        "task_id": "t",
+        "bundle_id": "b",
+        "schema_version": "1.3",
+    }
+
+
+def test_the_trace_carries_the_whole_extracted_claim_exactly_once() -> None:
+    # M9 renders the extracted claim from the trace, so every field must survive it. The
+    # evidence links live in `scoring.evidence` alone: recording them twice invites drift.
+    _, claim, scored = verify("accuracy_improvement")
+    trace = V.build_trace(scored, claim, run_id="r")
+    events = {event.kind: event for event in trace.events}
+    recorded = events["scoring.claim"].data["claim"]
+    assert "evidence_links" not in recorded
+    assert recorded == claim.model_dump(mode="json", exclude={"evidence_links"})
+    assert recorded["metrics"] == ["accuracy"] and recorded["baseline_value"] == 72.0
+    assert len(events["scoring.evidence"].data["links"]) == len(claim.evidence_links)
 
 
 def test_the_trace_records_the_rule_that_produced_each_inference() -> None:
@@ -698,7 +727,9 @@ def test_verify_writes_a_result_and_a_trace(tmp_path: Path) -> None:
     payload = json.loads(result_path.read_text())
     assert payload["result"]["support_label"] == "supported"
     events = read_trace(trace_path)
-    assert events[0]["kind"] == "scoring.claim"
+    assert events[0]["kind"] == "scoring.run"
+    assert events[0]["data"]["task_id"] == "dataset_mean"
+    assert events[1]["kind"] == "scoring.claim"
     assert events[-1]["data"]["confidence"] == 1.0
     assert task.spec.task_id == "dataset_mean"
 

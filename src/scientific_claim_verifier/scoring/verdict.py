@@ -25,10 +25,18 @@ report shows both so a reader can disagree with the second without losing the fi
 The trace
 ---------
 Every run emits a :class:`~scientific_claim_verifier.schemas.RunTrace` as JSONL: the
-claim, the evidence, one event per check, one event per classifier (carrying the rule
-name, the reason, and the check ids it consulted), and the result. Keys are sorted and
-nothing is read from the wall clock, so two runs of one task produce byte-identical
-bytes. ``created_at`` stays unset for the same reason.
+run's identity, the claim, the evidence, one event per check, one event per classifier
+(carrying the rule name, the reason, and the check ids it consulted), and the result.
+Keys are sorted and nothing is read from the wall clock, so two runs of one task produce
+byte-identical bytes. ``created_at`` stays unset for the same reason.
+
+The trace is **self-describing**, and Milestone 9 depends on that: a report is rendered
+from the trace and nothing else — no task file, no bundle, no re-run. So the stream opens
+with a ``scoring.run`` event naming the run, the task, the bundle, and the schema version
+(``RunTrace.to_jsonl`` serializes events only, so those four facts would otherwise survive
+only in the *filename*), and ``scoring.claim`` carries the whole extracted claim rather
+than a hand-picked five of its fields. ``reports.reader`` reconstructs this module's
+:class:`ScoredClaim` from those bytes, and a test asserts the round trip is exact.
 
 Exit codes
 ----------
@@ -72,6 +80,7 @@ from .support_labels import classify_support_signals
 
 #: Every event kind :func:`build_trace` emits, in emission order.
 SCORING_EVENT_KINDS = (
+    "scoring.run",
     "scoring.claim",
     "scoring.evidence",
     "scoring.check",
@@ -204,13 +213,19 @@ def build_trace(
     result = scored.result
 
     trace.add_event(
+        "scoring.run",
+        "the run this trace records, and the schema its events are written under",
+        run_id=run_id,
+        task_id=task_id,
+        bundle_id=bundle_id,
+        schema_version=trace.schema_version,
+    )
+    # The whole claim, minus its evidence links — those are the next event's subject, and
+    # recording them twice would let one copy drift from the other.
+    trace.add_event(
         "scoring.claim",
         claim.claim_text.strip(),
-        claim_id=claim.claim_id,
-        claim_type=claim.claim_type.value,
-        normalized_claim=claim.normalized_claim,
-        expected_value=claim.expected_value,
-        baseline_value=claim.baseline_value,
+        claim=claim.model_dump(mode="json", exclude={"evidence_links"}),
     )
     trace.add_event(
         "scoring.evidence",
@@ -250,7 +265,6 @@ def build_trace(
         claim_id=result.claim_id,
         confidence=result.confidence,
         limitations=list(result.limitations),
-        schema_version=trace.schema_version,
     )
     return trace
 

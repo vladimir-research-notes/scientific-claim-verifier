@@ -194,9 +194,25 @@
   <span class="pill ok">11 tasks · 26 checks</span> <span class="pill ok">0 wrong verdicts</span>
   <span class="pill ok">gate PASS</span> <span class="pill ok">ruff clean</span></p>
 
-  <h3>M9 — Reports <span class="pill">planned</span></h3>
-  <p>Markdown (+ optional HTML) reports from traces: input/extracted claim, evidence, checks,
-  support label, reproducibility status, failure mode, limitations, and a trace link.</p>
+  <h3>M9 — Reports <span class="pill ok">done</span></h3>
+  <p>Markdown (and standalone HTML) reports: the extracted claim, the evidence, each check, the
+  inference and the named rule behind it, what remains unverifiable, and a link to the JSONL trace
+  — in six numbered sections, so the five audit channels cannot silently merge. The report
+  generator is a <strong>function of the trace</strong>: it imports no pipeline stage, opens no
+  artifact, re-runs no check, and reconstructs the Milestone 7 scored claim from the JSONL bytes
+  alone, re-validating every object against the schema on the way in. A test scores each committed
+  fixture, writes its trace, reads it back, and asserts the reconstruction <em>equals</em> the
+  original — so a fact recorded in a result but not in its trace fails the build.</p>
+  <p>Making that true required changing the trace, and <code>SCHEMA_VERSION</code> moved to
+  <code>1.3</code> to say so. <code>RunTrace.to_jsonl</code> serializes events only, so a trace's
+  <code>run_id</code>, <code>task_id</code>, and <code>bundle_id</code> previously survived nowhere
+  but the <em>filename</em>; a <code>scoring.run</code> event now opens every stream, and
+  <code>scoring.claim</code> carries the whole extracted claim. A pre-1.3 trace is refused by name,
+  with an instruction, rather than guessed at from its path. Reachable via
+  <code>claimverifier report</code>; shown on <a href="example-report.html">Example report</a>.
+  <span class="pill ok">100 new tests</span> <span class="pill ok">600 total</span>
+  <span class="pill ok">11 reports from 11 traces</span>
+  <span class="pill ok">byte-identical across run dirs</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M10 — Optional adapters <span class="pill">planned</span></h3>
   <p><code>RecordedLLMAdapter</code>, <code>MockLLMAdapter</code>, and a cost-guarded

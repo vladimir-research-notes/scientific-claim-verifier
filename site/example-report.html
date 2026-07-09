@@ -26,79 +26,207 @@
 </header>
 <main>
   <h1>Example report</h1>
-  <p class="lede">A real verification result for a dataset-statistic claim, printed by
-  <code>claimverifier verify</code>. The Markdown/HTML report <em>generator</em> lands in
-  Milestone 9; the content below — the five separated channels and the trace behind them — is what
-  it will render.</p>
-  <p><span class="status done">status: real output, Milestone 7</span> &nbsp; <span class="status planned">Markdown/HTML generator lands in Milestone 9</span></p>
+  <p class="lede">A real Markdown report, reproduced verbatim, for the fixture this project
+  exists for: a paper whose abstract asserts a number its own results table contradicts. The
+  report keeps the assertion and the contradiction in <em>different sections</em>, because
+  collapsing them would destroy the only interesting fact about the claim.</p>
+  <p><span class="status done">status: real output, Milestone 9</span> &nbsp; <span class="status done">rendered from the JSONL trace alone</span></p>
 
-  <h2>Verification result</h2>
-  <pre><code>$ claimverifier verify --task tasks/statistical_claims/dataset_mean.yaml
+  <pre><code>$ claimverifier run-suite --out results/runs/
+$ claimverifier report   --run results/runs/smoke_suite --out results/reports/
+wrote 12 file(s) for 11 claim(s) from results/runs/smoke_suite</code></pre>
 
-Task            : dataset_mean
-Claim           : c_dataset_mean (dataset_claim)
-Text            : The measurements dataset has 12 samples with a mean value of 3.4.
-Normalized      : mean ~ 3.4
+  <h2>Header and §1 — the extracted claim</h2>
+  <pre><code># Verification report — contradicted_f1
 
-Supporting text (retrieved evidence):
-  "The measurements dataset has 12 samples with a mean value of 3.4."
+Claim &#x27;c_contradicted_f1&#x27; is contradicted by the supplied artifacts (artifacts_refute: the
+table does not hold the claimed value). Reproduction: not_applicable. Failure mode:
+table_cell_mismatch. 2 of 2 check(s) reached a verdict.
 
-Computed checks (what each artifact says about the claim):
-  [pass        ] evidence_presence  p_dataset        -&gt; supports
-  [pass        ] dataset_statistic  ds_measurements  -&gt; supports
-  [pass        ] dataset_statistic  ds_measurements  -&gt; supports
+| Field | Value |
+| --- | --- |
+| task | contradicted_f1 |
+| claim | c_contradicted_f1 |
+| support_label | contradicted |
+| reproduction_status | not_applicable |
+| failure_mode | table_cell_mismatch |
+| confidence | 1.00 |
+| bundle | bundle_contradicted_f1 |
+| schema_version | 1.3 |
 
-Inference (drawn from the checks above; each rule names the checks it read):
-  support_label       : supported
-    rule              : all_checks_support [c_dataset_mean.evidence_presence.1,
-                        c_dataset_mean.dataset_statistic.1,
-                        c_dataset_mean.dataset_statistic.2]
-    because           : all 3 check(s) reached a verdict and every verdict supports the claim
-  reproduction_status : reproduced
-    rule              : dataset_recomputation
-    because           : the recomputation reproduced the claimed value exactly
-  failure_mode        : none
-    rule              : clean
-    because           : the artifacts support the claim and nothing failed to reproduce
-  confidence          : 1.00 (share of checks that reached a verdict; not a probability)
+## 1. Extracted claim
 
-Unverifiable from these artifacts (what this verdict does NOT settle):
-  (none — every check reached a verdict)
+The typed fields a rule-based extractor recovered from the claim sentence. Extraction is a
+transparent heuristic — regular expressions and small closed lexicons, not a language model —
+and an empty field means the extractor found nothing rather than that nothing is there. See
+docs/EXTRACTION.md.
 
-Task gold       : supported [ok ] / reproduced [ok ] / none [ok ]</code></pre>
-  <p>Two <code>dataset_statistic</code> checks, not one: the claim asserts a mean <em>and</em> a
-  sample count, and each is recomputed from the committed CSV independently — the mean within the
-  claim's own reported precision (±0.05, because it was written <code>3.4</code>), the count exactly,
-  because a CSV has a whole number of rows.</p>
+&gt; Method B reaches an F1 score of 91.0 on MNLI.
 
-  <h2>The trace behind it</h2>
-  <p><code>--out DIR</code> writes <code>&lt;task_id&gt;.result.json</code> and
-  <code>&lt;task_id&gt;.trace.jsonl</code>. Every inference names the rule that produced it and the
-  checks that rule read, so a reader can re-derive the verdict without re-reading the code:</p>
-  <pre><code>{"data": {"claim_id": "c_dataset_mean", "claim_type": "dataset_claim", ...}, "kind": "scoring.claim", "seq": 0}
-{"data": {"links": [...]}, "kind": "scoring.evidence", "seq": 1}
-{"data": {"check": {...}, "signal": "supports"}, "kind": "scoring.check", "seq": 2}
+| Field | Value |
+| --- | --- |
+| normalized_claim | f1 = 91 % |
+| claim_type | numeric_claim |
+| expected_value | 91.0 |
+| baseline_value | — |
+| comparison_operator | = |
+| units | % |
+| metrics | f1 |
+| datasets | MNLI |
+| entities | Method B |
+| conditions | — |
+| source_document_id | paper_mnli |
+| source_passage | p_claim |</code></pre>
+  <p>An empty field prints <code>—</code>, never <code>None</code> and never a guess. Extraction
+  is a labelled heuristic, and <code>conditions: —</code> means the extractor found no condition,
+  not that the claim has none.</p>
+
+  <h2>§2 and §3 — supporting text, then the computed check</h2>
+  <pre><code>## 2. Supporting text (retrieved evidence)
+
+The passages the evidence linker retrieved for this claim. Retrieval is not support: that a
+passage was retrieved says nothing about whether it asserts the claim. Section 3 is where that
+is checked.
+
+&gt; Method B reaches an F1 score of 91.0 on MNLI.
+
+- passage p_claim · score 1.000 · match=declared_source_passage; overlap=1.000; rank=1
+
+Other artifacts linked to this claim:
+
+- table t_mnli [col=f1] · score 1.000 · match=table_column
+
+## 3. Computed checks
+
+Each check reads one artifact and records what it found. A check produces evidence; it does not
+decide the claim&#x27;s support label — that inference is section 4. A check&#x27;s status is a fact about
+the check; its signal is what the check says about the claim, and the two differ: an evidence
+check that fails because the passage never mentions the claim refutes nothing. See
+docs/CHECKS.md and docs/SCORING.md.
+
+| Status | Check | Target | Computed | Expected | Tolerance | Signal |
+| --- | --- | --- | --- | --- | --- | --- |
+| pass | evidence_presence | p_claim | verbatim | — | — | supports |
+| fail | table_value | t_mnli[col=f1] | 86.0 | 91.0 | 0.05 | refutes |
+
+- c_contradicted_f1.evidence_presence.1 (pass → supports)
+  check: the passage states the claim verbatim
+  signal: the linked passage states the claim (verbatim)
+- c_contradicted_f1.table_value.1 (fail → refutes)
+  check: claimed 91 is absent from column &#x27;f1&#x27; (nearest 86 at row B; |difference| = 5 &gt; tolerance 0.05)
+  signal: the table does not hold the claimed value</code></pre>
+  <p><strong>This is the whole design in eight lines.</strong> The abstract states the claim
+  <em>verbatim</em>, so the evidence check passes. The results table reports 86.0, so the table
+  check fails. Both are correct. A system that collapsed them into one verdict would report
+  <code>contradicted</code> and throw away the fact that the paper asserts the claim in its own
+  words — which is the finding.</p>
+  <p>Note also the two columns that would be one in a lesser tool: a check's
+  <strong>status</strong> is a fact about the check, and its <strong>signal</strong> is what the
+  check says about the <em>claim</em>. They are not the same question, and one status maps to more
+  than one answer — an evidence check that <code>fail</code>s because the passage never
+  <em>mentions</em> the claim signals <code>undecided</code>, not <code>refutes</code>. Silence is
+  not refutation.</p>
+
+  <h2>§4 — the inference, with the rule that produced it</h2>
+  <pre><code>## 4. Inference
+
+A verdict is not a summary of the checks; it is an inference from them. Each rule names itself
+and the check ids it read, so the verdict can be re-derived without re-reading the code.
+
+- support_label: contradicted
+  rule: artifacts_refute [c_contradicted_f1.table_value.1]
+  because: the table does not hold the claimed value
+- reproduction_status: not_applicable
+  rule: no_reproduction_channel [no checks]
+  because: the claim references no script to run and no dataset to recompute from, so nothing
+           here re-derives a number
+- failure_mode: table_cell_mismatch
+  rule: cause:table_cell_mismatch [c_contradicted_f1.table_value.1]
+  because: the table does not hold the claimed value
+
+confidence 1.00 — the share of this claim&#x27;s checks that reached a pass/fail verdict. It is not a
+probability that the label is correct, and it is not calibrated against anything.</code></pre>
+  <p>Every inference names the rule that produced it <em>and the check IDs that rule read</em>.
+  "Why does this claim say <code>contradicted</code>?" is answered by a lookup, not by re-reading
+  the code. And <code>confidence</code> never appears without the sentence that says what it is
+  not: it is <em>decidedness</em>, the share of checks that reached a verdict, and a claim whose
+  only check is <code>inconclusive</code> scores <code>0.00</code> no matter how confident its
+  label sounds.</p>
+
+  <h2>§5 and §6 — what is unverifiable, and the bytes behind it</h2>
+  <pre><code>## 5. Unverifiable from these artifacts
+
+What this verdict does not settle, and why.
+
+(none — every check reached a verdict)
+
+## 6. Trace
+
+This report was rendered from the trace below and from nothing else: no task file was read, no
+artifact re-opened, no check re-run. Every number, quote, rule, and limitation above was
+recovered from these bytes and re-validated against the schema.
+
+[contradicted_f1.trace.jsonl](../runs/smoke_suite/contradicted_f1.trace.jsonl)
+
+9 JSONL events, schema 1.3. Keys are sorted and nothing is read from the wall clock, so two runs
+of one task produce byte-identical traces — including tasks whose fixture script actually
+executes.</code></pre>
+
+  <h2>A report is a function of its trace</h2>
+  <p>The report generator does not import the extractor, the linker, the checks, or the sandbox.
+  It reads one <code>&lt;task_id&gt;.trace.jsonl</code> and reconstructs the scored claim from it —
+  re-validating every object against the schema on the way in, so a corrupt trace raises rather
+  than rendering into a plausible-looking report. A run archived months ago, whose papers and CSVs
+  are long gone, still reports.</p>
+  <p>That is a claim worth testing rather than asserting, so a test scores every committed
+  fixture, writes its trace, reads it back, and asserts the reconstruction <strong>equals</strong>
+  the original result, rules, and signals. If a later milestone records a fact in the result but
+  not in the trace, that test fails.</p>
+  <p>Milestone 9 changed the trace to make this possible, and bumped <code>SCHEMA_VERSION</code> to
+  <code>1.3</code> to say so. A <code>scoring.run</code> event now opens the stream, naming the run,
+  the task, the bundle, and the schema — facts that previously survived only in the
+  <em>filename</em> — and <code>scoring.claim</code> carries the whole extracted claim rather than
+  five of its fields. A pre-1.3 trace is refused by name, with an instruction, rather than guessed
+  at.</p>
+  <pre><code>{"data": {"bundle_id": "bundle_contradicted_f1", "run_id": "contradicted_f1",
+          "schema_version": "1.3", "task_id": "contradicted_f1"}, "kind": "scoring.run", "seq": 0}
+{"data": {"claim": {"claim_id": "c_contradicted_f1", "expected_value": 91.0, ...}}, "kind": "scoring.claim", "seq": 1}
+{"data": {"links": [...]}, "kind": "scoring.evidence", "seq": 2}
 {"data": {"check": {...}, "signal": "supports"}, "kind": "scoring.check", "seq": 3}
-{"data": {"check": {...}, "signal": "supports"}, "kind": "scoring.check", "seq": 4}
-{"data": {"because": "all 3 check(s) reached a verdict...", "check_ids": [...],
-          "rule": "all_checks_support", "support_label": "supported"}, "kind": "scoring.support", "seq": 5}
-{"data": {"because": "the recomputation reproduced the claimed value exactly",
-          "reproduction_status": "reproduced", "rule": "dataset_recomputation"}, "kind": "scoring.reproduction", "seq": 6}
-{"data": {"causes": [], "failure_mode": "none", "rule": "clean"}, "kind": "scoring.failure", "seq": 7}
-{"data": {"confidence": 1.0, "limitations": [], "schema_version": "1.2"}, "kind": "scoring.result", "seq": 8}</code></pre>
-  <p>Keys are sorted and nothing is read from the wall clock, so two runs of one task produce
-  byte-identical bytes — including tasks whose script actually executes.</p>
+{"data": {"check": {...}, "signal": "refutes"}, "kind": "scoring.check", "seq": 4}
+{"data": {"because": "the table does not hold the claimed value", "check_ids": [...],
+          "rule": "artifacts_refute", "support_label": "contradicted"}, "kind": "scoring.support", "seq": 5}
+{"data": {"reproduction_status": "not_applicable", "rule": "no_reproduction_channel"}, "kind": "scoring.reproduction", "seq": 6}
+{"data": {"causes": [...], "failure_mode": "table_cell_mismatch"}, "kind": "scoring.failure", "seq": 7}
+{"data": {"confidence": 1.0, "limitations": []}, "kind": "scoring.result", "seq": 8}</code></pre>
 
-  <h2>Report sections</h2>
-  <p>Every report keeps the five channels separate — extracted claim, supporting text, computed
-  check, inference, unverifiable — plus limitations and a link to the JSONL trace. A verdict is not a
-  summary of the checks; it is an inference <em>from</em> them, and both are shown so a reader can
-  disagree with the second without losing the first.</p>
+  <h2>The other ten</h2>
+  <p><code>report</code> renders every claim in a run, plus an <code>index</code> linking each
+  report to its trace, in the suite's evidence-channel order. Two of the eleven are worth reading
+  next to this one:</p>
+  <ul>
+    <li><strong><code>synthetic_data_passage</code></strong> — the report that decides nothing.
+    Its passage <em>does</em> support the claim, but only by paraphrase, and a bag-of-words rule
+    cannot see it. §4 reads <code>unverifiable_from_artifacts</code>, <code>confidence 0.00</code>,
+    and §5 says exactly what could not be decided (<code>40% token coverage, missing ['model',
+    'only', 'trained']</code>). The word <code>contradicted</code> appears nowhere in it — a test
+    asserts that. Reporting a contradiction there would publish the checker's ignorance as a fact
+    about the paper.</li>
+    <li><strong><code>unreproducible_accuracy</code></strong> — a complete, working script whose
+    <code>predictions.csv</code> the paper never released. <code>code_execution</code> is
+    <code>error</code>, <code>numeric_tolerance</code> is <code>skipped</code> (no number
+    disagreed with 0.95, because no number exists), and §5 carries three limitations — including
+    the one every sandboxed report carries whether or not its verdict was favourable: <em>the
+    script ran under a recorded policy in a temp directory, which is controlled fixture execution
+    and not a security boundary.</em></li>
+  </ul>
 
-  <div class="callout">Milestone 9 renders this as Markdown (and optional HTML) directly from the
-  trace, and Milestone 8's smoke suite will link a generated report for every task. See the
-  <a href="results.html">Results</a> page for the fixture where this pipeline declines to reach a
-  verdict at all.</div>
+  <div class="callout">Reports come in Markdown and, with <code>--format html</code>, as one
+  standalone HTML file each — no stylesheet to ship beside it, no JavaScript, no network fetch. An
+  audit artefact may be read years after the run, from a directory someone copied off a machine, so
+  it must not depend on anything that directory does not contain. Both formats walk one document
+  tree, so they cannot disagree about what the pipeline concluded. See
+  <a href="results.html">Results</a> and <code>docs/REPORTS.md</code>.</div>
 </main>
 <footer class="site">scientific-claim-verifier — example report.</footer>
 </body>

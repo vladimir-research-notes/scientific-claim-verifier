@@ -13,6 +13,7 @@ Commands online so far:
 - ``claimverifier run-sandbox``        — controlled fixture execution + trace (M6).
 - ``claimverifier verify``             — score a claim: support label + trace (M7).
 - ``claimverifier run-suite``          — run the offline smoke suite, gated (M8).
+- ``claimverifier report``             — render reports from a run's traces (M9).
 
 ``link-evidence``, ``run-checks``, and ``run-sandbox`` are additions beyond the
 ``docs/PLAN.md`` section 10 contract: that section lists the end-to-end verbs, but a
@@ -20,9 +21,9 @@ per-stage command keeps each subsystem independently runnable and auditable.
 ``run-checks`` is not ``verify``: it computes checks and stops there, while ``verify``
 draws the inference the checks are forbidden to draw.
 
-The last command advertised in ``docs/PLAN.md`` section 10 (``report``) comes online in
-Milestone 9. It is deliberately not registered yet, so an unimplemented command fails
-loudly rather than pretending to work.
+``report`` completes the section 10 contract. It reads the JSONL traces a ``verify`` or
+``run-suite`` run left behind and renders them; it never re-runs the pipeline, so a report
+can be produced from an archived run whose artifacts are long gone.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from . import __version__, envcheck, suite
 from .artifacts import validation
 from .checks import verification
 from .claims import extraction, linking
+from .reports import render
 from .sandbox import runner
 from .scoring import verdict
 
@@ -48,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Live commands: `check-env`, `version`, `validate-fixtures`, "
             "`extract-claims`, `link-evidence`, `run-checks`, `run-sandbox`, `verify`, "
-            "`run-suite`; `report` lands in Milestone 9 (see docs/PLAN.md)."
+            "`run-suite`, `report` (see docs/PLAN.md)."
         ),
     )
     parser.add_argument(
@@ -113,6 +115,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the offline smoke suite end to end and gate on regressions.",
     )
     suite.add_suite_arguments(run_suite)
+
+    report = subparsers.add_parser(
+        "report",
+        help="Render a Markdown (or HTML) report for each claim in a run, from its trace.",
+    )
+    render.add_report_arguments(report)
 
     return parser
 
@@ -179,6 +187,13 @@ def main(argv: list[str] | None = None) -> int:
             enforce_gate=not args.no_gate,
             abs_tol=args.abs_tol,
             rel_tol=args.rel_tol,
+        )
+    if args.command == "report":
+        return render.report_and_write(
+            args.run,
+            out=args.out,
+            fmt=args.format,
+            index=not args.no_index,
         )
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is

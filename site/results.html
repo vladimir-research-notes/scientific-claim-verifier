@@ -29,7 +29,7 @@
   <p class="lede">This page reports measured outcomes. Every number is reproducible offline on a
   single CPU with the command shown beside it. Numbers that do not exist yet are marked pending,
   never estimated.</p>
-  <p><span class="status done">status: Milestones 2–8 measured</span> &nbsp; <span class="status planned">reports pending — Milestone 9</span></p>
+  <p><span class="status done">status: Milestones 2–9 measured</span> &nbsp; <span class="status planned">optional adapters pending — Milestone 10</span></p>
 
   <div class="callout"><strong>The fixture set grew in Milestone 8</strong>, from seven tasks to
   eleven, so the smoke suite could reach the labels and statuses the original seven never produced:
@@ -37,6 +37,41 @@
   <code>failed_numeric_mismatch</code>, <code>failed_environment</code>,
   <code>statistic_mismatch</code>, <code>passage_does_not_assert</code>, and
   <code>execution_error</code>. Every number on this page is measured over all eleven.</div>
+
+  <h2>Reports (Milestone 9)</h2>
+  <pre><code>python3 -m pytest tests/test_reports.py -q                       # 98 tests
+claimverifier report --run results/runs/smoke_suite --out results/reports/</code></pre>
+  <p>Eleven reports and an index, rendered from the eleven JSONL traces the smoke suite wrote —
+  ~5 KB of Markdown per claim, in under a tenth of a second, reading nothing but the traces.</p>
+  <table>
+    <tr><th>Measured</th><th>Value</th></tr>
+    <tr><td>Reports rendered</td><td>11 + index, from 11 traces</td></tr>
+    <tr><td>Pipeline stages imported by the renderer</td><td><strong>0</strong></td></tr>
+    <tr><td>Artifacts re-opened, checks re-run</td><td><strong>0</strong></td></tr>
+    <tr><td>Round trip (trace → <code>ScoredClaim</code>)</td><td>exact on 11/11 fixtures — result, rules, signals, and claim all equal the originals</td></tr>
+    <tr><td>Reports beside their traces, two run dirs</td><td>byte-identical; no absolute path in either</td></tr>
+    <tr><td>Formats</td><td>Markdown, and standalone HTML (no stylesheet, no JS, no network fetch)</td></tr>
+  </table>
+  <p><strong>The round trip is the result.</strong> <code>docs/PLAN.md</code> §11 requires that
+  reports be generated from traces, and the only thing separating that from a slogan is a test that
+  fails when it stops being true. So a test scores every committed fixture, writes its trace, reads
+  it back through the reader, and asserts the reconstructed Milestone 7
+  <code>ScoredClaim</code> <em>equals</em> the original. A trace that cannot be turned back into the
+  verdict it recorded is not an audit record — it is a log.</p>
+  <p>Making that pass required changing the trace, not the reader.
+  <code>RunTrace.to_jsonl</code> serializes events only, so a trace's <code>run_id</code>,
+  <code>task_id</code>, and <code>bundle_id</code> survived nowhere but the <em>filename</em>, and
+  <code>scoring.claim</code> recorded five of the extracted claim's fields rather than all of them.
+  <code>SCHEMA_VERSION</code> moved to <code>1.3</code>: a <code>scoring.run</code> event now opens
+  every stream, <code>scoring.claim</code> carries the whole claim, and a pre-1.3 trace is refused
+  by name with an instruction rather than guessed at. No model changed.</p>
+  <p>Twelve of the 98 tests are about refusing to render: a truncated, reordered, duplicated,
+  schema-violating, foreign (<code>sandbox.*</code>), non-JSONL, empty, missing, or
+  wrong-major-version trace raises <code>ReportError</code> naming the file, rather than producing a
+  plausible-looking report. Every object is re-validated through its pydantic model on the way in.</p>
+  <p>See the <a href="example-report.html">Example report</a> for the full text of
+  <code>contradicted_f1</code>, the fixture whose abstract asserts a number its own table denies —
+  and which the report keeps in two different sections.</p>
 
   <h2>The offline smoke suite (Milestone 8)</h2>
   <pre><code>python3 scripts/05_run_smoke_suite.py --out results/runs/    # 11 tasks, exit 0
@@ -394,12 +429,13 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td>M6</td><td>61</td><td>346</td></tr>
     <tr><td>M7</td><td>106</td><td>452</td></tr>
     <tr><td>M8</td><td>48</td><td>500</td></tr>
+    <tr><td>M9</td><td>100</td><td>600</td></tr>
   </table>
   <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
-  anywhere in the default path. Milestones 5, 6, and 8 execute committed, stdlib-only fixture scripts
-  (plus a few written by the tests themselves) as child processes — local, harmless, and offline.
-  The socket tests either construct a socket or are refused before one exists; none connects to
-  anything. <code>ruff check .</code> passes.</p>
+  anywhere in the default path. Milestones 5, 6, 8, and 9 execute committed, stdlib-only fixture
+  scripts (plus a few written by the tests themselves) as child processes — local, harmless, and
+  offline. The socket tests either construct a socket or are refused before one exists; none
+  connects to anything. <code>ruff check .</code> passes.</p>
 
   <h2>Verdict distributions (11 committed fixtures)</h2>
   <p>Measured over the eleven committed tasks by <code>claimverifier run-suite</code>.</p>

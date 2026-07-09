@@ -76,6 +76,21 @@
   data this project does not have. A claim whose only check is <code>inconclusive</code> scores
   <code>0.00</code>, however confident its label sounds.</p>
 
+  <h2>A report describes the run, not the benchmark</h2>
+  <p><code>claimverifier report</code> renders a claim's verdict and the evidence behind it. It
+  never prints the task's <em>gold</em> outcome, and it cannot: the report is a function of the
+  JSONL trace, and a trace records what the pipeline concluded, not what it should have concluded.
+  Gold agreement lives in <code>summary.csv</code> and <code>summary.json</code> beside the traces,
+  where a wrong verdict and an honest refusal to decide are counted apart. A report that scored
+  itself would be answering a different question, and the index says so rather than tallying one.</p>
+  <p>Two smaller limits of the renderer, both stated rather than papered over. Markdown
+  <strong>table cells</strong> escape <code>|</code> and collapse newlines, because an unescaped
+  pipe silently eats a column; <strong>prose</strong> is not escaped, so a claim sentence containing
+  <code>*</code> or <code>_</code> renders with emphasis. That is a formatting artefact, not a
+  correctness one — mangling <code>p &lt; 0.05</code> to defend against it would cost more than it
+  buys. And no committed fixture is refuted by its table <em>and</em> undecidable from its text at
+  once, so the report's multi-cause block is exercised by a unit test rather than by a real run.</p>
+
   <h2>Scoring is per-claim, and its rules are coarse in places</h2>
   <p>Each claim is scored independently; the pipeline never asks whether two claims in one bundle
   contradict each other. Two failure-mode mappings lose information, both deliberately: a

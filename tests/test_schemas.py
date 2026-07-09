@@ -22,8 +22,10 @@ from scientific_claim_verifier import schemas as S
 def test_schema_version_is_real() -> None:
     # The Milestone 0 stub used "0-stub"; M1 shipped "1.0"; M5 bumped to "1.1" when it
     # added CheckStatus.INCONCLUSIVE, and M7 to "1.2" for FailureMode.EVIDENCE_UNDECIDABLE
-    # (both additive changes — every 1.0 document stays valid).
-    assert S.SCHEMA_VERSION == "1.2"
+    # (both additive changes — every 1.0 document stays valid). M9 bumped to "1.3" for the
+    # self-describing scoring trace: no model changed, but a 1.2 trace does not satisfy a
+    # 1.3 reader, which is what the version string is for.
+    assert S.SCHEMA_VERSION == "1.3"
     assert "stub" not in S.SCHEMA_VERSION
 
 

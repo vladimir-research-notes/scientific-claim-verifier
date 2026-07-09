@@ -40,7 +40,15 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # was produced under. 1.1 adds ``CheckStatus.INCONCLUSIVE`` (Milestone 5) and 1.2
 # adds ``FailureMode.EVIDENCE_UNDECIDABLE`` (Milestone 7) — both additive: every
 # 1.0 document is still valid.
-SCHEMA_VERSION = "1.2"
+#
+# 1.3 (Milestone 9) changes no model. It changes the **event contract** of a scoring
+# trace, so that a report can be rendered from the trace alone: a ``scoring.run``
+# event now opens the stream carrying the run/task/bundle ids and this version
+# string, and ``scoring.claim`` carries the whole extracted claim rather than five of
+# its fields. The version is bumped because a 1.2 trace does not satisfy a 1.3
+# reader — which is precisely what a version string is for. Readers compare the
+# **major** component: within a major version, event data only ever grows.
+SCHEMA_VERSION = "1.3"
 
 # A scalar cell / value as it may appear in a table, a computed result, or an
 # expected output. ``None`` represents an absent cell. Booleans are intentionally
