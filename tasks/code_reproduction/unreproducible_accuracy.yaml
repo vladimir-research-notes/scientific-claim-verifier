@@ -1,0 +1,76 @@
+# Failed code reproduction (task family #4 in docs/PLAN.md §7).
+# The code is released; the data is not. The script exits non-zero without printing
+# a metric, so nothing is learned about the claimed number — and the report must say
+# that rather than infer a contradiction. Gold outcome: partially supported,
+# failed environment, execution error.
+task_id: unreproducible_accuracy
+family: code_reproduction
+title: "Running reproduce_from_predictions.py reports accuracy 0.95 (the input is missing)"
+description: >
+  The paper claims its evaluation script prints an accuracy of 0.95. The script is
+  committed, but it reads a `predictions.csv` the paper never released, so it exits
+  1 having printed no metric. Two things follow, and the schema keeps them apart.
+  The reproduction failed *for want of an environment*, not because the number was
+  wrong: `failed_environment`, never `failed_numeric_mismatch`. And the claim is
+  `partially_supported`, not `contradicted` — the paper's own text asserts it, and a
+  script that will not run refutes nothing.
+
+claim:
+  claim_id: c_unreproducible_accuracy
+  claim_text: "Running reproduce_from_predictions.py reports an accuracy of 0.95."
+  claim_type: code_reproduction_claim
+  source_document_id: paper_unreleased
+  source_passage: p_eval
+
+artifacts:
+  bundle_id: bundle_unreproducible_accuracy
+  task_id: unreproducible_accuracy
+  papers:
+    - artifact_id: paper_unreleased
+      title: "Evaluation on held-out predictions"
+      passages:
+        - passage_id: p_eval
+          section: "Evaluation"
+          text: >
+            Running reproduce_from_predictions.py reports an accuracy of 0.95.
+        - passage_id: p_availability
+          section: "Availability"
+          text: >
+            The evaluation code is released; the held-out predictions are not
+            distributed with this paper.
+  code_files:
+    - artifact_id: code_unreleased
+      path: data/fixtures/code/reproduce_from_predictions.py
+      entrypoint: "python reproduce_from_predictions.py"
+      language: python
+      timeout_seconds: 10
+  expected_outputs:
+    stdout_contains: "accuracy=0.95"
+    accuracy: 0.95
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: partially_supported
+  reproduction_status: failed_environment
+  failure_mode: execution_error
+  claim:
+    normalized_claim: "accuracy ~ 0.95"
+    metrics: [accuracy]
+    expected_value: 0.95
+    comparison_operator: "~"
+  evidence:
+    - kind: passage
+      target_id: p_eval
+      quote: "Running reproduce_from_predictions.py reports an accuracy of 0.95."
+    - kind: code
+      target_id: code_unreleased
+      locator: "stdout"
+
+notes: >
+  `expected_outputs` declares what a successful run would print. It is recorded on
+  the check even though no run produced it, so a reader can see what was being
+  looked for. The `numeric_tolerance` check is `skipped`, not `fail`: no number
+  disagreed with 0.95, because no number exists. This is the suite's only
+  `partially_supported` claim and its only `execution_error`.

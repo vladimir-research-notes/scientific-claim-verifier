@@ -174,30 +174,34 @@ phrasing, and scoring it as if it could would be overclaiming.
 compare as **sets** — order is not semantically meaningful. Float fields compare
 with `math.isclose`. `normalized_claim` is excluded, per above.
 
-### Results on the seven committed fixtures
+### Results on the eleven committed fixtures
 
 Reproduce with `python3 -m pytest tests/test_extraction.py -q`, or per task with
 `claimverifier extract-claims --task <task.yaml>`.
 
 | Field | Recovered | Channel |
 | --- | --- | --- |
-| `expected_value` | 7/7 | reliable |
-| `baseline_value` | 7/7 | reliable |
-| `comparison_operator` | 7/7 | reliable |
-| `units` | 7/7 | reliable |
-| `metrics` | 7/7 | reliable |
-| `datasets` | 7/7 | best effort |
-| `entities` | 7/7 | best effort |
-| `conditions` | **6/7** | best effort |
+| `expected_value` | 11/11 | reliable |
+| `baseline_value` | 11/11 | reliable |
+| `comparison_operator` | 11/11 | reliable |
+| `units` | 11/11 | reliable |
+| `metrics` | 11/11 | reliable |
+| `datasets` | 11/11 | best effort |
+| `entities` | 11/11 | best effort |
+| `conditions` | **10/11** | best effort |
 
 The single miss is `synthetic_data_passage`, whose gold condition
 `"synthetic data only"` is a semantic paraphrase of *"trained only on synthetic
 data"*. The extractor returns `[]` rather than guessing.
 
-**Read these numbers honestly.** Seven hand-authored fixtures are a sanity check,
+The four fixtures added in M8 needed no extractor change: `standard deviation` was
+already in the metric lexicon, and `reproduce_from_predictions.py` resolves by
+basename like any other `.py` reference.
+
+**Read these numbers honestly.** Eleven hand-authored fixtures are a sanity check,
 not a benchmark. The lexicons (datasets, entities, metrics) were chosen to cover
-these fixtures; a `7/7` on `datasets` means "every dataset mention present was
-found", not "dataset extraction is solved". The `6/7` on `conditions` is the more
+these fixtures; an `11/11` on `datasets` means "every dataset mention present was
+found", not "dataset extraction is solved". The `10/11` on `conditions` is the more
 informative number.
 
 ## CLI

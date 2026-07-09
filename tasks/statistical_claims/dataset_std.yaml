@@ -1,0 +1,74 @@
+# Dataset statistic claim (task family #2 in docs/PLAN.md §7).
+# The fixture that separates `reproduced` from `approximately_reproduced`: the
+# recomputed value lands inside the claim's own reported precision without landing
+# on it. Gold outcome: supported, approximately reproduced.
+task_id: dataset_std
+family: dataset_statistic
+title: "Dataset has a standard deviation of 1.1 (recomputed: 1.1299)"
+description: >
+  A dataset claim asserting a standard deviation of 1.1 over the committed CSV. The
+  population standard deviation of the `value` column is 1.1298967504, which rounds
+  to 1.1 and so is consistent with what the claim actually asserts — but it is not
+  the claimed number. The check passes within the tolerance the claim's wording
+  implies (±0.05, half of one decimal place), and the reproduction status records
+  `approximately_reproduced` rather than `reproduced` to preserve the gap.
+
+claim:
+  claim_id: c_dataset_std
+  claim_text: "The measurements dataset has a standard deviation of 1.1."
+  claim_type: dataset_claim
+  source_document_id: paper_measurements_spread
+  source_passage: p_spread
+
+artifacts:
+  bundle_id: bundle_dataset_std
+  task_id: dataset_std
+  papers:
+    - artifact_id: paper_measurements_spread
+      title: "Dispersion of the measurements set"
+      passages:
+        - passage_id: p_spread
+          section: "Data"
+          text: >
+            The measurements dataset has a standard deviation of 1.1.
+        - passage_id: p_center
+          section: "Data"
+          text: >
+            Values are centred near 3.4 and range from 1.0 to 5.0.
+  datasets:
+    - artifact_id: ds_measurements
+      path: data/fixtures/datasets/measurements.csv
+      description: "12 synthetic scalar measurements (mean 3.4)."
+      columns: [sample_id, value]
+      n_rows: 12
+      license: synthetic
+  expected_outputs:
+    std: 1.1298967504452195
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: supported
+  reproduction_status: approximately_reproduced
+  failure_mode: none
+  claim:
+    normalized_claim: "std ~ 1.1"
+    metrics: [std]
+    datasets: [measurements]
+    expected_value: 1.1
+    comparison_operator: "~"
+  evidence:
+    - kind: passage
+      target_id: p_spread
+      quote: "The measurements dataset has a standard deviation of 1.1."
+    - kind: dataset
+      target_id: ds_measurements
+      locator: "column=value"
+
+notes: >
+  `std` is the population standard deviation (ddof=0); the checker names the
+  convention on the check rather than leaving it implicit. The claim is written to
+  one decimal place, so its own precision admits any value rounding to 1.1 — which
+  is why this is `supported` and not `contradicted`. Compare `dataset_mean`, whose
+  recomputation lands exactly on the claimed value and earns `reproduced`.

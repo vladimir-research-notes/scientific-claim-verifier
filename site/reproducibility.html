@@ -29,7 +29,7 @@
   <p class="lede">Scoring maps the set of checks onto three explicit vocabularies: a support
   label (is the claim backed?), a reproducibility status (did the computation reproduce?), and
   a failure mode (if not, why?).</p>
-  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status done">checks that feed scoring live in Milestone 5</span> &nbsp; <span class="status done">the sandbox that reproduces lands in Milestone 6</span> &nbsp; <span class="status done">scoring logic lands in Milestone 7</span></p>
+  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status done">checks that feed scoring live in Milestone 5</span> &nbsp; <span class="status done">the sandbox that reproduces lands in Milestone 6</span> &nbsp; <span class="status done">scoring logic lands in Milestone 7</span> &nbsp; <span class="status done">six of the eight statuses now fire on a committed fixture (Milestone 8)</span></p>
 
   <h2>A check's status is not its meaning</h2>
   <p>Scoring never reads a check's <code>status</code> directly. It first reduces each check to what
@@ -74,26 +74,33 @@
   reproduction</strong> — so a table claim is <code>not_applicable</code>, rather than being inflated
   into a reproduced result.</p>
   <table>
-    <tr><th>Status</th><th>Meaning</th></tr>
-    <tr><td><span class="pill ok">reproduced</span></td><td>The recomputed number matched the claim <em>exactly</em>.</td></tr>
-    <tr><td><span class="pill ok">approximately_reproduced</span></td><td>It landed inside the tolerance, but not on the value.</td></tr>
-    <tr><td><span class="pill bad">failed_environment</span></td><td>Timed out, exited non-zero, or the sandbox could not enforce its policy.</td></tr>
-    <tr><td><span class="pill bad">failed_missing_data</span></td><td>The dataset is absent or unusable.</td></tr>
-    <tr><td><span class="pill bad">failed_missing_code</span></td><td>The script is absent, or its link resolves to nothing.</td></tr>
-    <tr><td><span class="pill bad">failed_numeric_mismatch</span></td><td>It ran, and produced the wrong number.</td></tr>
-    <tr><td><span class="pill">not_applicable</span></td><td>The claim exercises no reproduction channel.</td></tr>
-    <tr><td><span class="pill">not_attempted</span></td><td><code>--no-execute</code>, or nothing was declared to compare against.</td></tr>
+    <tr><th>Status</th><th>Meaning</th><th>Committed fixture</th></tr>
+    <tr><td><span class="pill ok">reproduced</span></td><td>The recomputed number matched the claim <em>exactly</em>.</td><td><code>dataset_mean</code>, <code>recompute_accuracy</code>, <code>gc_content</code></td></tr>
+    <tr><td><span class="pill ok">approximately_reproduced</span></td><td>It landed inside the tolerance, but not on the value.</td><td><code>dataset_std</code></td></tr>
+    <tr><td><span class="pill bad">failed_environment</span></td><td>Timed out, exited non-zero, or the sandbox could not enforce its policy.</td><td><code>unreproducible_accuracy</code></td></tr>
+    <tr><td><span class="pill bad">failed_missing_data</span></td><td>The dataset is absent or unusable.</td><td><em>none — unit tests only</em></td></tr>
+    <tr><td><span class="pill bad">failed_missing_code</span></td><td>The script is absent, or its link resolves to nothing.</td><td><em>none — unit tests only</em></td></tr>
+    <tr><td><span class="pill bad">failed_numeric_mismatch</span></td><td>It ran, and produced the wrong number.</td><td><code>dataset_mean_overstated</code></td></tr>
+    <tr><td><span class="pill">not_applicable</span></td><td>The claim exercises no reproduction channel.</td><td>the five table and passage claims</td></tr>
+    <tr><td><span class="pill">not_attempted</span></td><td><code>--no-execute</code>, or nothing was declared to compare against.</td><td><em>flag only</em></td></tr>
   </table>
   <p>When a claim exercises both channels, the <strong>worst</strong> status wins: a script that
-  reproduced does not excuse a dataset that went missing.</p>
+  reproduced does not excuse a dataset that went missing. No committed task has both a script
+  <em>and</em> a dataset, so that rule is pinned by unit tests rather than by a fixture.</p>
+  <p>The two <code>failed_missing_*</code> statuses have no fixture because they cannot be expressed
+  as one: a task naming an absent fixture file fails to <em>load</em>. They are reachable through the
+  API (a dangling evidence link, a dataset with no <code>path</code>) and pinned by unit tests.</p>
 
   <div class="callout"><strong>Why <code>failed_environment</code> and
   <code>failed_numeric_mismatch</code> are separate.</strong> Because the checks that feed them are.
   <code>code_execution</code> judges whether the script <em>ran</em>; a timeout or a non-zero exit is
   an <code>error</code>, never a <code>fail</code>, since a script that will not run tells you
   nothing about the claim's number. A separate <code>numeric_tolerance</code> check judges whether
-  the number it printed <em>agrees</em>. A single boolean could not tell these apart. See
-  <a href="checks.html">Checks</a>.</div>
+  the number it printed <em>agrees</em>. A single boolean could not tell these apart.
+  <code>unreproducible_accuracy</code> is the fixture that makes the distinction concrete: its
+  script's input data was never released, so it exits 1, <code>numeric_tolerance</code> is
+  <code>skipped</code> rather than <code>fail</code> — no number disagreed, because no number exists
+  — and the claim keeps whatever support its text gives it. See <a href="checks.html">Checks</a>.</div>
 
   <h2>Tolerance</h2>
   <p>"Within tolerance" above means: within the claim's own <strong>reported precision</strong>. A
@@ -146,9 +153,9 @@
 {"data": {"stderr": "", "stdout": "accuracy=0.80\n"}, "kind": "sandbox.output", "seq": 2}
 {"data": {"exit_code": 0, "network_attempts": [], "ok": true, "timed_out": false}, "kind": "sandbox.result", "seq": 3}</code></pre>
   <p>Swapping Milestone 5's bare <code>subprocess.run</code> for this sandbox moved
-  <strong>no verdict</strong>: the check table is still 16 pass / 1 fail / 1 inconclusive over the
-  seven fixtures. That is the point of having written the check against a runner protocol. See
-  <a href="results.html">Results</a>.</p>
+  <strong>no verdict</strong>: the check table stayed 16 pass / 1 fail / 1 inconclusive over the
+  then-seven fixtures. That is the point of having written the check against a runner protocol.
+  (The fixture set is now eleven; see <a href="results.html">Results</a>.)</p>
 
   <h2>Failure modes</h2>
   <p>A support label says the claim is not backed. A failure mode says what to go and fix. That is

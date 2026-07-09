@@ -29,7 +29,7 @@
   <p class="lede">Checks are deterministic and transparent. Each takes a claim plus its linked
   artifacts and emits a <code>VerificationCheck</code> record with inputs, computed value,
   expected value, tolerance, pass/fail, and notes.</p>
-  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status done">evidence linking live in Milestone 4</span> &nbsp; <span class="status done">checks live in Milestone 5 — 18 checks over 7 fixtures</span> &nbsp; <span class="status done">sandbox landed in Milestone 6 — no verdict moved</span></p>
+  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status done">evidence linking live in Milestone 4</span> &nbsp; <span class="status done">checks live in Milestone 5 — 26 checks over 11 fixtures</span> &nbsp; <span class="status done">sandbox landed in Milestone 6 — no verdict moved</span> &nbsp; <span class="status done">all five statuses now fire on a committed task (Milestone 8)</span></p>
 
   <h2>Before a check runs: evidence linking</h2>
   <p>A check cannot run until something has said <em>where to look</em>. That is the evidence
@@ -82,13 +82,19 @@
   whose <em>method cannot decide</em> says <code>inconclusive</code> — a distinct status, added to the
   schema in Milestone 5 (version <code>1.1</code>, additive).</p>
   <table>
-    <tr><th>Status</th><th>Meaning</th><th>Signal it reduces to (M7)</th></tr>
-    <tr><td><code>pass</code></td><td>The artifacts agree with the claim.</td><td><code>supports</code> — or <code>ambiguous</code>, for a column lookup the claim never disambiguated</td></tr>
-    <tr><td><code>fail</code></td><td>The artifacts <strong>disagree</strong>.</td><td><code>refutes</code> — except an <em>absent</em> passage, which decides nothing</td></tr>
-    <tr><td><code>inconclusive</code></td><td>The method <strong>cannot decide</strong>.</td><td><code>undecided</code> → <code>unverifiable_from_artifacts</code></td></tr>
-    <tr><td><code>error</code></td><td>The check could not run.</td><td><code>undecided</code> → <code>failed_*</code> reproduction, via <code>error_kind</code></td></tr>
-    <tr><td><code>skipped</code></td><td>The check did not apply.</td><td><code>undecided</code> — a limitation, not a failure</td></tr>
+    <tr><th>Status</th><th>Meaning</th><th>Signal it reduces to (M7)</th><th>Fixture (M8)</th></tr>
+    <tr><td><code>pass</code></td><td>The artifacts agree with the claim.</td><td><code>supports</code> — or <code>ambiguous</code>, for a column lookup the claim never disambiguated</td><td>20 checks</td></tr>
+    <tr><td><code>fail</code></td><td>The artifacts <strong>disagree</strong>.</td><td><code>refutes</code> — except an <em>absent</em> passage, which decides nothing</td><td><code>contradicted_f1</code>, <code>dataset_mean_overstated</code>, <code>negated_training_data</code></td></tr>
+    <tr><td><code>inconclusive</code></td><td>The method <strong>cannot decide</strong>.</td><td><code>undecided</code> → <code>unverifiable_from_artifacts</code></td><td><code>synthetic_data_passage</code></td></tr>
+    <tr><td><code>error</code></td><td>The check could not run.</td><td><code>undecided</code> → <code>failed_*</code> reproduction, via <code>error_kind</code></td><td><code>unreproducible_accuracy</code></td></tr>
+    <tr><td><code>skipped</code></td><td>The check did not apply.</td><td><code>undecided</code> — a limitation, not a failure</td><td><code>unreproducible_accuracy</code></td></tr>
   </table>
+  <p><code>unreproducible_accuracy</code> produces both an <code>error</code> and a
+  <code>skipped</code> check, and the pair is the point. Its script exits 1, so
+  <code>code_execution</code> <em>could not run</em> the claim's computation. The
+  <code>numeric_tolerance</code> check that would have judged the number is then
+  <code>skipped</code>, never <code>fail</code>: no number disagreed with the claim, because no
+  number exists.</p>
   <div class="callout">Without <code>inconclusive</code>, a transparent lexical check faced with a
   paraphrase would have to report <code>fail</code>, and scoring would manufacture a
   <em>contradiction</em> out of the checker's own ignorance. The distinction between "the artifacts

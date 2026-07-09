@@ -29,10 +29,66 @@
   <p class="lede">This page reports measured outcomes. Every number is reproducible offline on a
   single CPU with the command shown beside it. Numbers that do not exist yet are marked pending,
   never estimated.</p>
-  <p><span class="status done">status: Milestones 3–7 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+  <p><span class="status done">status: Milestones 2–8 measured</span> &nbsp; <span class="status planned">reports pending — Milestone 9</span></p>
+
+  <div class="callout"><strong>The fixture set grew in Milestone 8</strong>, from seven tasks to
+  eleven, so the smoke suite could reach the labels and statuses the original seven never produced:
+  <code>partially_supported</code>, <code>approximately_reproduced</code>,
+  <code>failed_numeric_mismatch</code>, <code>failed_environment</code>,
+  <code>statistic_mismatch</code>, <code>passage_does_not_assert</code>, and
+  <code>execution_error</code>. Every number on this page is measured over all eleven.</div>
+
+  <h2>The offline smoke suite (Milestone 8)</h2>
+  <pre><code>python3 scripts/05_run_smoke_suite.py --out results/runs/    # 11 tasks, exit 0
+claimverifier run-suite --out results/runs/                  # same</code></pre>
+  <p>Eleven tasks, run end to end on a CPU with no network and no paid API, in about a second and a
+  half. The suite writes a JSONL trace and a result JSON per task, plus <code>summary.csv</code>,
+  <code>summary.json</code>, and <code>summary.txt</code>, into
+  <code>results/runs/smoke_suite/</code>.</p>
+  <table>
+    <tr><td>Tasks</td><td>11 <span class="pill ok">plan asks for ≥ 8</span></td></tr>
+    <tr><td>Checks run</td><td>26 — 20 pass, 3 fail, 1 inconclusive, 1 error, 1 skipped</td></tr>
+    <tr><td>Scripts executed</td><td>3, in the controlled sandbox</td></tr>
+    <tr><td>Gold agreement</td><td>support 10/11 · reproduction 11/11 · failure mode 10/11</td></tr>
+    <tr><td><strong>Wrong verdicts</strong></td><td><span class="pill ok">0</span></td></tr>
+    <tr><td>Conservative misses</td><td><span class="pill">1 — <code>synthetic_data_passage</code>, declared in the suite file</span></td></tr>
+    <tr><td><strong>Gate</strong></td><td><span class="pill ok">PASS</span> (exit 0)</td></tr>
+  </table>
+
+  <h3>The suite is a gate, not a scoreboard</h3>
+  <p><code>run-suite</code> exits non-zero when the pipeline <em>regresses</em>, and the definition
+  of regression is deliberately asymmetric:</p>
+  <ul>
+    <li>Any <strong>wrong verdict</strong> — a committal support label the task's gold outcome
+      disagrees with — fails the run. <code>tasks/smoke_suite.yaml</code> has no key that could
+      declare one acceptable, so a suite file can never bless one. (A test asserts the schema
+      rejects the field outright.)</li>
+    <li>A <strong>conservative miss</strong> — predicting <code>unverifiable_from_artifacts</code>
+      where gold commits — fails the run <em>only if the set of them changed</em>. A new one is a
+      regression; a fixed one must be removed from the file rather than left to rot.</li>
+  </ul>
+  <div class="callout">That asymmetry is the point. A change that raises label accuracy by turning a
+  claim the pipeline honestly declined to decide into one it decides <strong>wrongly</strong> has
+  made the tool worse, and a single accuracy number would have called it an improvement. The gate is
+  tested by injecting each failure in turn — a wrong verdict, a new miss, a stale declared miss — and
+  asserting it fails; <strong>a gate that never fails proves nothing when it passes.</strong></div>
+  <p>A suite full of <code>contradicted</code> claims exits <strong>0</strong>: finding a
+  contradiction is the tool working. And <code>--no-execute</code> does not gate at all — skipping
+  the fixture scripts leaves every code-reproduction claim undecided by its own artifacts, and the
+  gold outcomes it would be judged against assume the scripts ran. Reporting those label shifts as
+  "wrong verdicts" would blame the pipeline for the operator's flag.</p>
+
+  <h3>What is byte-reproducible, and what is not</h3>
+  <p>Two runs of the suite into two different directories produce <strong>byte-identical</strong>
+  <code>*.trace.jsonl</code> (all 11), <code>summary.csv</code>, and <code>summary.json</code>.
+  Exactly two artifacts differ, in exactly one field each, and both are paths the caller chose:
+  <code>&lt;task_id&gt;.result.json</code> records its own trace's absolute <code>trace_path</code>,
+  and <code>summary.txt</code> names the output directory. <code>summary.csv</code> refers to each
+  trace by filename alone, so it stays portable. A test hashes every artifact of two runs and diffs
+  the two exceptions field by field.</p>
 
   <h2>Support labels &amp; failure modes (Milestone 7)</h2>
-  <pre><code>python3 -m pytest tests/test_scoring.py -q       # 100 tests
+  <pre><code>python3 -m pytest tests/test_scoring.py -q       # 104 tests
 claimverifier verify --task &lt;task.yaml&gt;          # per-task verdict + trace</code></pre>
   <p>The verdict the pipeline draws for each committed fixture, beside the gold outcome the task
   file declares. No LLM judges anything: each label is assigned by a named rule over the Milestone 5
@@ -42,19 +98,29 @@ claimverifier verify --task &lt;task.yaml&gt;          # per-task verdict + trac
     <tr><td><code>accuracy_improvement</code></td><td><span class="pill ok">supported</span></td><td>not_applicable</td><td>none</td><td>✓ ✓ ✓</td></tr>
     <tr><td><code>contradicted_f1</code></td><td><span class="pill bad">contradicted</span></td><td>not_applicable</td><td>table_cell_mismatch</td><td>✓ ✓ ✓</td></tr>
     <tr><td><code>dataset_mean</code></td><td><span class="pill ok">supported</span></td><td><span class="pill ok">reproduced</span></td><td>none</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>dataset_mean_overstated</code></td><td><span class="pill bad">contradicted</span></td><td><span class="pill bad">failed_numeric_mismatch</span></td><td>statistic_mismatch</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>dataset_std</code></td><td><span class="pill ok">supported</span></td><td><span class="pill warn">approximately_reproduced</span></td><td>none</td><td>✓ ✓ ✓</td></tr>
     <tr><td><code>gc_content</code></td><td><span class="pill ok">supported</span></td><td><span class="pill ok">reproduced</span></td><td>none</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>negated_training_data</code></td><td><span class="pill bad">contradicted</span></td><td>not_applicable</td><td>passage_does_not_assert</td><td>✓ ✓ ✓</td></tr>
     <tr><td><code>recompute_accuracy</code></td><td><span class="pill ok">supported</span></td><td><span class="pill ok">reproduced</span></td><td>none</td><td>✓ ✓ ✓</td></tr>
     <tr><td><code>underspecified_split</code></td><td><span class="pill warn">underspecified</span></td><td>not_applicable</td><td>underspecified</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>unreproducible_accuracy</code></td><td><span class="pill warn">partially_supported</span></td><td><span class="pill bad">failed_environment</span></td><td>execution_error</td><td>✓ ✓ ✓</td></tr>
     <tr><td><code>synthetic_data_passage</code></td><td><span class="pill">unverifiable_from_artifacts</span></td><td>not_applicable</td><td>evidence_undecidable</td><td>✗ ✓ ✗</td></tr>
   </table>
   <table>
     <tr><th>Agreement with gold</th><th>Score</th></tr>
-    <tr><td><code>support_label</code></td><td>6/7</td></tr>
-    <tr><td><code>reproduction_status</code></td><td>7/7</td></tr>
-    <tr><td><code>failure_mode</code></td><td>6/7</td></tr>
-    <tr><td><strong>Wrong verdicts</strong></td><td><span class="pill ok">0/7</span></td></tr>
-    <tr><td>Conservative misses</td><td><span class="pill">1/7 — <code>synthetic_data_passage</code></span></td></tr>
+    <tr><td><code>support_label</code></td><td>10/11</td></tr>
+    <tr><td><code>reproduction_status</code></td><td>11/11</td></tr>
+    <tr><td><code>failure_mode</code></td><td>10/11</td></tr>
+    <tr><td><strong>Wrong verdicts</strong></td><td><span class="pill ok">0/11</span></td></tr>
+    <tr><td>Conservative misses</td><td><span class="pill">1/11 — <code>synthetic_data_passage</code></span></td></tr>
   </table>
+  <p>Five of the six support labels and six of the eight reproduction statuses now appear on a
+  committed fixture. What remains unexercised end to end: <code>not_checked</code> (unreachable — the
+  check runner always emits an <code>evidence_presence</code> check), <code>failed_missing_data</code>
+  and <code>failed_missing_code</code> (a task naming an absent fixture file fails to <em>load</em>,
+  so it cannot be expressed), and <code>not_attempted</code> (reachable only via
+  <code>--no-execute</code>). All four are pinned by unit tests instead.</p>
 
   <h3>The only number that matters here</h3>
   <p><strong>Wrong verdicts: 0.</strong> A mismatch is bucketed by kind, because a single accuracy
@@ -89,31 +155,46 @@ claimverifier verify --task &lt;task.yaml&gt;          # per-task verdict + trac
   <code>contradicted</code>, and the report still shows the passage that asserts it.</p>
 
   <h3>How to read this</h3>
-  <p><strong>A regression harness, not a benchmark.</strong> Seven hand-authored synthetic fixtures,
-  whose gold outcomes were written alongside the rules that score them. 6/7 does not mean scientific
-  claim verification is 86% solved. What the table shows is that the rule table is coherent (no
+  <p><strong>A regression harness, not a benchmark.</strong> Eleven hand-authored synthetic fixtures,
+  whose gold outcomes were written alongside the rules that score them. 10/11 does not mean scientific
+  claim verification is 91% solved. What the table shows is that the rule table is coherent (no
   fixture needs a special case), that it never asserts a verdict gold contradicts, and that the one
-  claim its methods cannot read is <em>reported as unread</em> rather than guessed at.
-  <code>reproduction_status</code> is 7/7 because the three reproducing fixtures reproduce
-  <em>exactly</em>, and the four table and passage claims correctly get <code>not_applicable</code>:
+  claim its methods cannot read is <em>reported as unread</em> rather than guessed at.</p>
+  <p>The four fixtures added in Milestone 8 are the closest thing here to a held-out test: they were
+  authored <em>after</em> the Milestone 7 rule table was frozen, and each landed on its hand-written
+  gold outcome without a single change to the extractor, the linker, the checks, or the rules. That
+  is weak evidence — the same agent wrote both, with the rules in view — but it is stronger than the
+  seven that came before, where the rules were tuned as the fixtures were written.</p>
+  <p><code>reproduction_status</code> is 11/11 across all six statuses it can reach: three fixtures
+  reproduce <em>exactly</em>, <code>dataset_std</code> reproduces <em>approximately</em> (pstdev =
+  1.1298967…, inside the ±0.05 its one-decimal claim admits but not on it),
+  <code>dataset_mean_overstated</code> fails numerically, <code>unreproducible_accuracy</code> fails
+  environmentally, and the five table and passage claims correctly get <code>not_applicable</code>:
   reading a value out of a table cell is a lookup, not a reproduction. Traces are byte-identical
-  across runs, including for the two fixtures whose scripts actually execute. See
+  across runs, including for the three fixtures whose scripts actually execute. See
   <code>docs/SCORING.md</code>.</p>
 
   <h2>Sandbox reproduction (Milestone 6)</h2>
   <pre><code>python3 -m pytest tests/test_sandbox.py -q            # 61 tests
 claimverifier run-sandbox --task &lt;task.yaml&gt; --out results/runs/</code></pre>
-  <p>Both committed code fixtures execute under the recorded policy and reproduce the metric their
-  claim states — offline, with the network guard installed, in a temp directory they cannot escape
-  upward from.</p>
+  <p>Three committed code fixtures execute under the recorded policy — offline, with the network
+  guard installed, in a temp directory they cannot escape upward from. Two reproduce the metric their
+  claim states. The third fails, on purpose.</p>
   <table>
     <tr><th>Task</th><th>Script</th><th>stdout</th><th>Exit</th><th>Network attempts</th><th>Files written</th></tr>
     <tr><td><code>recompute_accuracy</code></td><td><code>compute_accuracy.py</code></td><td><code>accuracy=0.80</code></td><td>0</td><td>none</td><td>none</td></tr>
     <tr><td><code>gc_content</code></td><td><code>gc_content.py</code></td><td><code>gc_content=0.50</code></td><td>0</td><td>none</td><td>none</td></tr>
+    <tr><td><code>unreproducible_accuracy</code></td><td><code>reproduce_from_predictions.py</code></td><td><em>(empty)</em></td><td><span class="pill bad">1</span></td><td>none</td><td>none</td></tr>
   </table>
-  <p>The Milestone 5 check table below is <strong>unchanged</strong> under the new runner, and that
-  is the result worth reporting: swapping a bare <code>subprocess.run</code> for a policy-enforcing
-  sandbox moved no verdict. The <code>ScriptRunner</code> protocol held, and
+  <p><code>reproduce_from_predictions.py</code> (Milestone 8) is a complete, working script whose
+  input <code>predictions.csv</code> the paper never released — the most ordinary reproducibility
+  failure there is. The sandbox reports <code>exited 1</code>, <code>code_execution</code> records
+  <code>error</code> / <code>nonzero_exit</code>, and the reproduction status is
+  <code>failed_environment</code> — <strong>never</strong> <code>failed_numeric_mismatch</code>,
+  because a script that will not run tells you nothing about the claim's number.</p>
+  <p>The Milestone 5 check table was <strong>unchanged</strong> by the new runner when it landed, and
+  that is the result worth reporting: swapping a bare <code>subprocess.run</code> for a
+  policy-enforcing sandbox moved no verdict. The <code>ScriptRunner</code> protocol held, and
   <code>code_execution</code> changed only its default runner.</p>
 
   <p>Each guard below is exercised by a test that fires it. These are
@@ -139,29 +220,44 @@ claimverifier run-sandbox --task &lt;task.yaml&gt; --out results/runs/</code></p
   succeeds and the denial happens at <code>socket.create_connection</code>, where the connection is
   actually attempted. Both behaviours are test-pinned.</div>
 
-  <p><strong>How to read this.</strong> Two fixtures is not a reproducibility benchmark. Both scripts
-  are stdlib-only, embed their own data, take no arguments, and were written by the same agent as the
-  sandbox that runs them. What the table shows is that the controls hold and cost nothing. The
-  interesting failures are the guard rows, not the two passes. Wall-clock duration is measured
-  (≈30 ms per script) and deliberately kept out of the trace unless <code>--with-timing</code> is
-  passed — it is the only value in an execution record that cannot be reproduced.</p>
+  <p><strong>How to read this.</strong> Three fixtures is not a reproducibility benchmark. The scripts
+  are stdlib-only, embed their own data (or, in the failing case, deliberately do not), take no
+  arguments, and were written by the same agent as the sandbox that runs them. What the table shows is
+  that the controls hold and cost nothing. The interesting failures are the guard rows, not the two
+  passes. Wall-clock duration is measured (≈30 ms per script) and deliberately kept out of the trace
+  unless <code>--with-timing</code> is passed — it is the only value in an execution record that cannot
+  be reproduced.</p>
 
   <h2>Verification checks (Milestone 5)</h2>
-  <pre><code>python3 -m pytest tests/test_checks.py -q     # 112 tests
+  <pre><code>python3 -m pytest tests/test_checks.py -q     # 118 tests
 claimverifier run-checks --task &lt;task.yaml&gt;   # per-task check report</code></pre>
-  <p>18 checks over the seven committed fixtures: <strong>16 pass, 1 fail, 1 inconclusive</strong>,
-  0 error, 0 skipped. No check assigns a support label — that inference is Milestone 7's.</p>
+  <p>26 checks over the eleven committed fixtures: <strong>20 pass, 3 fail, 1 inconclusive, 1 error,
+  1 skipped</strong> — every one of the five statuses now fires on a real task. No check assigns a
+  support label; that inference is Milestone 7's.</p>
 
   <table>
     <tr><th>Task</th><th>Checks</th><th>Outcome</th></tr>
     <tr><td><code>accuracy_improvement</code></td><td>4</td><td><code>evidence_presence</code> pass · <code>table_value</code> pass ×2 · <code>comparison</code> pass</td></tr>
     <tr><td><code>contradicted_f1</code></td><td>2</td><td><code>evidence_presence</code> <strong>pass</strong> · <code>table_value</code> <strong>fail</strong></td></tr>
     <tr><td><code>dataset_mean</code></td><td>3</td><td><code>evidence_presence</code> pass · <code>dataset_statistic</code> pass ×2</td></tr>
+    <tr><td><code>dataset_mean_overstated</code></td><td>2</td><td><code>evidence_presence</code> <strong>pass</strong> · <code>dataset_statistic</code> <strong>fail</strong></td></tr>
+    <tr><td><code>dataset_std</code></td><td>2</td><td><code>evidence_presence</code> pass · <code>dataset_statistic</code> pass (within tolerance, not exact)</td></tr>
     <tr><td><code>gc_content</code></td><td>3</td><td><code>evidence_presence</code> pass · <code>code_execution</code> pass · <code>numeric_tolerance</code> pass</td></tr>
+    <tr><td><code>negated_training_data</code></td><td>1</td><td><code>evidence_presence</code> <strong>fail</strong> (polarity mismatch)</td></tr>
     <tr><td><code>recompute_accuracy</code></td><td>3</td><td><code>evidence_presence</code> pass · <code>code_execution</code> pass · <code>numeric_tolerance</code> pass</td></tr>
     <tr><td><code>synthetic_data_passage</code></td><td>1</td><td><code>evidence_presence</code> <strong>inconclusive</strong></td></tr>
     <tr><td><code>underspecified_split</code></td><td>2</td><td><code>evidence_presence</code> pass · <code>table_value</code> pass (ambiguous over 2 rows)</td></tr>
+    <tr><td><code>unreproducible_accuracy</code></td><td>3</td><td><code>evidence_presence</code> pass · <code>code_execution</code> <strong>error</strong> · <code>numeric_tolerance</code> <strong>skipped</strong></td></tr>
   </table>
+
+  <p><code>evidence_presence</code> <em>fails</em> on <code>negated_training_data</code> and is
+  <em>inconclusive</em> on <code>synthetic_data_passage</code>, and the difference is the whole design:
+  the first passage contains every token of its claim <strong>and a negation</strong>, which refutes it;
+  the second is a paraphrase the rule cannot read, which refutes nothing.
+  <code>unreproducible_accuracy</code> is where <code>error</code> and <code>skipped</code> come from,
+  and they are not the same thing: the script exited 1, so <code>code_execution</code> could not run
+  the claim's computation, and <code>numeric_tolerance</code> is then <code>skipped</code>, not
+  <code>fail</code> — no number disagreed with 0.95, because no number exists.</p>
 
   <div class="callout"><strong>The two rows that matter.</strong>
   <p><code>contradicted_f1</code> — <em>the fixture the project exists for.</em> The abstract states
@@ -202,70 +298,77 @@ claimverifier link-evidence --task &lt;task.yaml&gt; --no-declared-source</code>
     <tr><td><code>accuracy_improvement</code></td><td>3</td><td>3</td><td>0</td></tr>
     <tr><td><code>contradicted_f1</code></td><td>2</td><td>2</td><td>0</td></tr>
     <tr><td><code>dataset_mean</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><code>dataset_mean_overstated</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><code>dataset_std</code></td><td>2</td><td>2</td><td>0</td></tr>
     <tr><td><code>gc_content</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><code>negated_training_data</code></td><td>1</td><td>1</td><td>0</td></tr>
     <tr><td><code>recompute_accuracy</code></td><td>2</td><td>2</td><td>0</td></tr>
     <tr><td><code>synthetic_data_passage</code></td><td>1</td><td>1</td><td>0</td></tr>
     <tr><td><code>underspecified_split</code></td><td>2</td><td>2</td><td>0</td></tr>
-    <tr><td><strong>total</strong></td><td><strong>14</strong></td><td><strong>14</strong></td><td><strong>0</strong></td></tr>
+    <tr><td><code>unreproducible_accuracy</code></td><td>2</td><td>2</td><td>0</td></tr>
+    <tr><td><strong>total</strong></td><td><strong>21</strong></td><td><strong>21</strong></td><td><strong>0</strong></td></tr>
   </table>
   <p>Strict precision 1.00, recall 1.00. Honouring the declared <code>source_passage</code> gives
-  the same 14/14 — it changes the passage link's <em>method</em>, not its target.</p>
+  the same 21/21 — it changes the passage link's <em>method</em>, not its target. The count moves
+  whenever a fixture is added; <strong>the zeros are the invariant</strong>, and they are what the
+  test asserts.</p>
 
   <p>Passage overlap scores, the one channel whose outcome is not forced by an identifier:</p>
   <table>
     <tr><th>Task</th><th>Best passage</th><th>Overlap</th><th>Runner-up</th><th>Overlap</th></tr>
     <tr><td><code>synthetic_data_passage</code></td><td><code>p_data</code></td><td><strong>0.211</strong></td><td><code>p_hardware</code></td><td><strong>0.000</strong></td></tr>
+    <tr><td><code>negated_training_data</code></td><td><code>p_corpora</code></td><td><strong>0.571</strong></td><td><code>p_eval_corpora</code></td><td><strong>0.182</strong></td></tr>
     <tr><td><code>accuracy_improvement</code></td><td><code>p_results</code></td><td>0.824 (verbatim)</td><td><code>p_setup</code></td><td>0.308</td></tr>
     <tr><td><code>underspecified_split</code></td><td><code>p_headline</code></td><td>1.000 (verbatim)</td><td><code>p_detail</code></td><td>0.154</td></tr>
   </table>
 
   <div class="callout"><strong>How to read this.</strong> A <em>consistency check, not a
   benchmark</em>. The locator conventions and the table row rule were written with the two
-  committed table fixtures in view. 14/14 means "the linker reproduces the hand-authored
+  committed table fixtures in view. 21/21 means "the linker reproduces the hand-authored
   provenance exactly, and invents nothing" — a real property, and the one Milestone 5 depends on
-  — not that retrieval is solved. <strong><code>synthetic_data_passage</code> is the only fixture
-  where keyword overlap is load-bearing</strong>: the claim appears nowhere verbatim, so the
+  — not that retrieval is solved. <strong><code>synthetic_data_passage</code> is the fixture
+  where keyword overlap is most load-bearing</strong>: the claim appears nowhere verbatim, so the
   linker must separate a paraphrasing passage (0.211, on the two shared tokens
   <code>synthetic</code> and <code>data</code>) from a compute-hardware distractor (0.000). It
   does — but 0.211 is a low absolute score, and the margin exists only because the distractor
   shares no vocabulary at all. A harder distractor would not be separated by a bag-of-words
   baseline.</div>
 
+  <p><code>negated_training_data</code> (Milestone 8) shows both halves of that limitation at once.
+  Its winning passage <strong>negates</strong> the claim and scores 0.571 anyway — the linker
+  retrieves it and says nothing about whether it supports anything, which is exactly the division of
+  labour intended. Meanwhile its distractor's strongest word never counts: <code>corpus</code> does
+  not match <code>corpora</code>, so morphology costs the runner-up most of its overlap.</p>
+
   <h2>Claim extraction vs. gold (Milestone 3)</h2>
   <pre><code>python3 -m pytest tests/test_extraction.py -q     # 36 tests
 claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. gold</code></pre>
   <p>Per-field recovery of the rule-based extractor against each task's gold extraction target,
-  over all seven committed fixtures. List fields compare as sets; floats with
+  over all eleven committed fixtures. List fields compare as sets; floats with
   <code>math.isclose</code>. <code>normalized_claim</code> is not scored — it is the extractor's
   own notation, not a gold match target.</p>
 
   <table>
     <tr><th>Field</th><th>Recovered</th><th>Channel</th></tr>
-    <tr><td><code>expected_value</code></td><td>7/7</td><td>reliable</td></tr>
-    <tr><td><code>baseline_value</code></td><td>7/7</td><td>reliable</td></tr>
-    <tr><td><code>comparison_operator</code></td><td>7/7</td><td>reliable</td></tr>
-    <tr><td><code>units</code></td><td>7/7</td><td>reliable</td></tr>
-    <tr><td><code>metrics</code></td><td>7/7</td><td>reliable</td></tr>
-    <tr><td><code>datasets</code></td><td>7/7</td><td>best effort</td></tr>
-    <tr><td><code>entities</code></td><td>7/7</td><td>best effort</td></tr>
-    <tr><td><code>conditions</code></td><td><strong>6/7</strong></td><td>best effort</td></tr>
+    <tr><td><code>expected_value</code></td><td>11/11</td><td>reliable</td></tr>
+    <tr><td><code>baseline_value</code></td><td>11/11</td><td>reliable</td></tr>
+    <tr><td><code>comparison_operator</code></td><td>11/11</td><td>reliable</td></tr>
+    <tr><td><code>units</code></td><td>11/11</td><td>reliable</td></tr>
+    <tr><td><code>metrics</code></td><td>11/11</td><td>reliable</td></tr>
+    <tr><td><code>datasets</code></td><td>11/11</td><td>best effort</td></tr>
+    <tr><td><code>entities</code></td><td>11/11</td><td>best effort</td></tr>
+    <tr><td><code>conditions</code></td><td><strong>10/11</strong></td><td>best effort</td></tr>
   </table>
 
-  <table>
-    <tr><th>Task</th><th>Claim type</th><th>Scored fields</th></tr>
-    <tr><td><code>accuracy_improvement</code></td><td><code>comparison_claim</code></td><td>8/8</td></tr>
-    <tr><td><code>contradicted_f1</code></td><td><code>numeric_claim</code></td><td>8/8</td></tr>
-    <tr><td><code>dataset_mean</code></td><td><code>dataset_claim</code></td><td>8/8</td></tr>
-    <tr><td><code>gc_content</code></td><td><code>code_reproduction_claim</code></td><td>8/8</td></tr>
-    <tr><td><code>recompute_accuracy</code></td><td><code>code_reproduction_claim</code></td><td>8/8</td></tr>
-    <tr><td><code>underspecified_split</code></td><td><code>numeric_claim</code></td><td>8/8</td></tr>
-    <tr><td><code>synthetic_data_passage</code></td><td><code>descriptive_claim</code></td><td>7/8</td></tr>
-  </table>
+  <p>Every fixture scores 8/8 on the eight scored fields except <code>synthetic_data_passage</code>,
+  which scores 7/8 (below). The four fixtures added in Milestone 8 needed no extractor change:
+  <code>standard deviation</code> was already in the metric lexicon, and the failing script's claim
+  resolves its <code>.py</code> filename by basename like any other.</p>
 
-  <div class="callout"><strong>How to read this.</strong> Seven hand-authored fixtures are a
+  <div class="callout"><strong>How to read this.</strong> Eleven hand-authored fixtures are a
   <em>sanity check, not a benchmark</em>, and the extractor's lexicons were chosen with them in
-  view. A <code>7/7</code> on <code>datasets</code> means "every dataset mention present was
-  found" — not that dataset extraction is solved. The <strong><code>6/7</code> on
+  view. An <code>11/11</code> on <code>datasets</code> means "every dataset mention present was
+  found" — not that dataset extraction is solved. The <strong><code>10/11</code> on
   <code>conditions</code> is the most informative number here</strong>: the miss is
   <code>synthetic_data_passage</code>, whose gold condition <code>"synthetic data only"</code> is
   a semantic paraphrase. The extractor returns <code>[]</code> rather than guessing — by design,
@@ -274,8 +377,10 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
 
   <h2>Fixture validation (Milestone 2)</h2>
   <pre><code>python3 scripts/01_validate_fixtures.py</code></pre>
-  <p>7 tasks ok, 0 failed, 0 warnings — <code>VALID</code>. Six tasks were authored in Milestone 2;
-  <code>contradicted_f1</code> was added in Milestone 5.</p>
+  <p>11 tasks ok, 1 suite ok, 0 failed, 0 warnings — <code>VALID</code>. Six tasks were authored in
+  Milestone 2; <code>contradicted_f1</code> was added in Milestone 5; four more in Milestone 8. The
+  suite file <code>tasks/smoke_suite.yaml</code> is validated too: it is invalid if it names a
+  <code>task_id</code> no task declares.</p>
 
   <h2>Tests and lint</h2>
   <table>
@@ -288,51 +393,57 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td>M5</td><td>114</td><td>285</td></tr>
     <tr><td>M6</td><td>61</td><td>346</td></tr>
     <tr><td>M7</td><td>106</td><td>452</td></tr>
+    <tr><td>M8</td><td>48</td><td>500</td></tr>
   </table>
   <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
-  anywhere in the default path. Milestones 5 and 6 execute committed, stdlib-only fixture scripts
+  anywhere in the default path. Milestones 5, 6, and 8 execute committed, stdlib-only fixture scripts
   (plus a few written by the tests themselves) as child processes — local, harmless, and offline.
   The socket tests either construct a socket or are refused before one exists; none connects to
   anything. <code>ruff check .</code> passes.</p>
 
-  <h2>Verdict distributions (7 committed fixtures)</h2>
-  <p>Measured over the seven committed tasks by <code>claimverifier verify</code>. The smoke suite
-  (Milestone 8) widens this to 8–15 tasks and generates reports from the traces.</p>
+  <h2>Verdict distributions (11 committed fixtures)</h2>
+  <p>Measured over the eleven committed tasks by <code>claimverifier run-suite</code>.</p>
 
   <h3>Support-label distribution</h3>
   <table>
     <tr><th>Label</th><th>Count</th></tr>
-    <tr><td>supported</td><td>4</td></tr>
-    <tr><td>contradicted</td><td>1</td></tr>
-    <tr><td>partially_supported</td><td>0</td></tr>
+    <tr><td>supported</td><td>5</td></tr>
+    <tr><td>contradicted</td><td>3</td></tr>
+    <tr><td>partially_supported</td><td>1</td></tr>
     <tr><td>underspecified</td><td>1</td></tr>
     <tr><td>unverifiable_from_artifacts</td><td>1</td></tr>
-    <tr><td>not_checked</td><td>0</td></tr>
+    <tr><td>not_checked</td><td>0 <span class="pill">unreachable</span></td></tr>
   </table>
 
   <h3>Reproducibility-status distribution</h3>
   <table>
     <tr><th>Status</th><th>Count</th></tr>
     <tr><td>reproduced</td><td>3</td></tr>
-    <tr><td>approximately_reproduced</td><td>0</td></tr>
-    <tr><td>failed_numeric_mismatch</td><td>0</td></tr>
-    <tr><td>failed_missing_data / code / environment</td><td>0</td></tr>
-    <tr><td>not_applicable / not_attempted</td><td>4 / 0</td></tr>
+    <tr><td>approximately_reproduced</td><td>1</td></tr>
+    <tr><td>failed_numeric_mismatch</td><td>1</td></tr>
+    <tr><td>failed_environment</td><td>1</td></tr>
+    <tr><td>failed_missing_data / failed_missing_code</td><td>0 / 0</td></tr>
+    <tr><td>not_applicable / not_attempted</td><td>5 / 0</td></tr>
   </table>
 
   <h3>Failure-mode distribution</h3>
   <table>
     <tr><th>Mode</th><th>Count</th></tr>
-    <tr><td>none</td><td>4</td></tr>
+    <tr><td>none</td><td>5</td></tr>
     <tr><td>table_cell_mismatch</td><td>1</td></tr>
+    <tr><td>statistic_mismatch</td><td>1</td></tr>
+    <tr><td>execution_error</td><td>1</td></tr>
+    <tr><td>passage_does_not_assert</td><td>1</td></tr>
     <tr><td>underspecified</td><td>1</td></tr>
     <tr><td>evidence_undecidable</td><td>1</td></tr>
   </table>
-  <p>Four of the seven fixtures never exercise a reproduction channel and are
-  <code>not_applicable</code> rather than <code>reproduced</code>: three table claims, where reading
-  a cell is a lookup, and one passage claim with nothing to compute. No fixture lands on
-  <code>approximately_reproduced</code> — the three that reproduce do so exactly — so that path is
-  pinned by unit tests instead of by a task.</p>
+  <p>Five of the eleven fixtures never exercise a reproduction channel and are
+  <code>not_applicable</code> rather than <code>reproduced</code>: four table and passage claims,
+  where reading a cell is a lookup, and one text-only contradiction. Three statuses have no fixture:
+  <code>not_checked</code> is unreachable (the check runner always emits an
+  <code>evidence_presence</code> check), and <code>failed_missing_data</code> /
+  <code>failed_missing_code</code> cannot be expressed as a task at all, because a task naming an
+  absent fixture file fails to <em>load</em>. All three are pinned by unit tests instead.</p>
 
   <div class="callout">Results are reproducible: the exact commands to regenerate this page's
   numbers will live in <code>docs/REPRODUCIBILITY.md</code> and can be run offline on

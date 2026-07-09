@@ -1,0 +1,55 @@
+# The offline smoke suite (Milestone 8).
+#
+# Eleven committed tasks run end to end on a CPU, with no network and no paid API.
+# Ordered by evidence channel — text, table, dataset, code — so a failure reads as
+# "the dataset channel broke", not "task 7 broke". Tasks are named by `task_id`;
+# `claimverifier run-suite` resolves each to its file under tasks/.
+#
+#   claimverifier run-suite --suite tasks/smoke_suite.yaml --out results/runs/
+suite_id: smoke_suite
+name: "Offline smoke suite"
+version: "1"
+description: >
+  Every claim-verification task in the repository, exercising each evidence channel
+  (passage, table, dataset, code) and each way a claim can fail to come out clean.
+  The suite is a regression harness for this pipeline over hand-authored synthetic
+  fixtures, not a benchmark result about scientific claim verification: the gold
+  outcomes were written alongside the rules that score them. See docs/RESULTS.md.
+
+task_ids:
+  # --- text channel: support rests entirely on what the passage says -----------
+  - synthetic_data_passage    # supported (paraphrase; the checker cannot read it)
+  - negated_training_data     # contradicted — polarity mismatch
+  # --- table channel: a value is read back from a results table ----------------
+  - accuracy_improvement      # supported — both sides of the comparison are in the table
+  - contradicted_f1           # contradicted — the abstract's number is in no cell
+  - underspecified_split      # underspecified — the value is there, the row is not named
+  # --- dataset channel: a statistic is recomputed from a committed CSV ---------
+  - dataset_mean              # supported / reproduced exactly
+  - dataset_std               # supported / approximately reproduced
+  - dataset_mean_overstated   # contradicted / failed numeric mismatch
+  # --- code channel: a tiny script is executed in the controlled sandbox -------
+  - recompute_accuracy        # supported / reproduced
+  - gc_content                # supported / reproduced (toy bioinformatics)
+  - unreproducible_accuracy   # partially supported / failed environment
+
+expected:
+  # Tasks whose gold support label the pipeline does not recover *because it
+  # declines to decide* — it asserts nothing false. Each one is a standing, named
+  # limitation, not an accepted error. `run-suite` fails if this set changes in
+  # either direction: a new conservative miss is a regression, and a fixed one must
+  # be removed from this list rather than left to rot.
+  #
+  # Wrong verdicts — a committal label the gold outcome disagrees with — cannot be
+  # declared here. There is no key for them, so the suite can never bless one.
+  conservative_misses:
+    - synthetic_data_passage
+
+notes: >
+  `synthetic_data_passage` is the standing miss. Its passage genuinely supports the
+  claim, through a paraphrase at 40% token coverage that the transparent lexical
+  evidence check cannot read; scoring maps `inconclusive` to
+  `unverifiable_from_artifacts` with failure mode `evidence_undecidable`, and
+  confidence 0.00. A stronger evidence checker is measured by whether it can move
+  this claim to `supported` *without* moving `negated_training_data` or
+  `contradicted_f1` off their refutations.

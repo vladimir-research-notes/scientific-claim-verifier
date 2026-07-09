@@ -265,4 +265,8 @@ escaped, so a row label containing `,` or `=` would be ambiguous; no fixture doe
 
 ## Results
 
-Measured outcomes over the seven committed fixtures are in `docs/RESULTS.md`.
+Measured outcomes over the eleven committed fixtures are in `docs/RESULTS.md`: 26 checks,
+20 pass / 3 fail / 1 inconclusive / 1 error / 1 skipped. Every one of the five statuses
+fires on a real task, `error` and `skipped` both on `unreproducible_accuracy` — whose
+script exits 1, so `code_execution` could not run and the `numeric_tolerance` check that
+would have judged its number is `skipped` rather than `fail`.

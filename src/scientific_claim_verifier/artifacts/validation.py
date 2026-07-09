@@ -1,18 +1,20 @@
-"""Fixture validation: check every task under ``tasks/`` against the schema.
+"""Fixture validation: check every task and suite under ``tasks/`` against the schema.
 
 This is the engine behind ``claimverifier validate-fixtures`` and
-``scripts/01_validate_fixtures.py`` (Milestone 2). For each task file it
-accumulates *all* problems rather than stopping at the first, so a single run
-tells you everything wrong with a fixture. Two severities:
+``scripts/01_validate_fixtures.py`` (Milestone 2; suites added in Milestone 8). For
+each file it accumulates *all* problems rather than stopping at the first, so a single
+run tells you everything wrong with a fixture. Two severities:
 
 - **errors** — the task is invalid: unparseable, fails the schema, references a
   missing/out-of-tree fixture file, a dataset whose CSV shape disagrees with its
   declared shape, or an evidence link / source passage that resolves to nothing.
-- **warnings** — the task loads but something is worth flagging: a fixture file
-  outside ``data/fixtures``, a filename that does not match its ``task_id``, or a
-  code-reproduction task with no expected value to score against.
+  A suite is invalid if it fails the schema or names a ``task_id`` that no task
+  under ``tasks/`` declares.
+- **warnings** — the file loads but something is worth flagging: a fixture file
+  outside ``data/fixtures``, a filename that does not match its ``task_id`` /
+  ``suite_id``, or a code-reproduction task with no expected value to score against.
 
-A run is *green* (exit 0) when no task has an error. Warnings never fail the run.
+A run is *green* (exit 0) when no file has an error. Warnings never fail the run.
 Purely local and offline: it reads task files and small committed fixtures only.
 """
 
@@ -29,6 +31,10 @@ from . import loader
 
 DEFAULT_TASKS_DIR = "tasks"
 
+# What a validated file turned out to be. Recorded so the report can say so.
+TASK = "task"
+SUITE = "suite"
+
 # Claim types for which the pipeline will attempt a reproduction; used to warn
 # when such a task ships without an expected value to score against.
 _REPRODUCIBLE_TYPES = {S.ClaimType.CODE_REPRODUCTION, S.ClaimType.DATASET}
@@ -36,22 +42,23 @@ _REPRODUCIBLE_TYPES = {S.ClaimType.CODE_REPRODUCTION, S.ClaimType.DATASET}
 
 @dataclass
 class TaskValidation:
-    """The validation outcome for a single task file."""
+    """The validation outcome for a single task or suite file."""
 
     path: Path
     task_id: str | None = None
+    kind: str = TASK
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
-        """True when the task has no errors (warnings are allowed)."""
+        """True when the file has no errors (warnings are allowed)."""
         return not self.errors
 
 
 @dataclass
 class ValidationReport:
-    """The aggregate outcome across a directory of task files."""
+    """The aggregate outcome across a directory of task and suite files."""
 
     tasks_dir: Path
     results: list[TaskValidation] = field(default_factory=list)
@@ -71,6 +78,14 @@ class ValidationReport:
     @property
     def n_warnings(self) -> int:
         return sum(len(r.warnings) for r in self.results)
+
+    @property
+    def n_tasks(self) -> int:
+        return sum(1 for r in self.results if r.kind == TASK)
+
+    @property
+    def n_suites(self) -> int:
+        return sum(1 for r in self.results if r.kind == SUITE)
 
 
 # ---------------------------------------------------------------------------
@@ -205,15 +220,66 @@ def validate_task_file(path: str | Path, repo_root: str | Path) -> TaskValidatio
     return result
 
 
+def validate_suite_file(path: str | Path, tasks_dir: str | Path) -> TaskValidation:
+    """Validate one suite file: its schema, its filename, and that its tasks exist."""
+    suite_path = Path(path)
+    result = TaskValidation(path=suite_path, kind=SUITE)
+
+    try:
+        text = suite_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        result.errors.append(f"cannot read file: {exc}")
+        return result
+
+    try:
+        data = loader.parse_task_data(text, is_json=suite_path.suffix.lower() == ".json")
+    except Exception as exc:  # yaml/json parse errors, non-mapping documents
+        result.errors.append(f"parse error: {exc}")
+        return result
+
+    result.task_id = data.get("suite_id") if isinstance(data, dict) else None
+
+    try:
+        spec = loader.SuiteSpec.model_validate(data)
+    except ValidationError as exc:
+        for err in exc.errors():
+            loc = ".".join(str(part) for part in err["loc"])
+            result.errors.append(f"schema: {loc}: {err['msg']}")
+        return result
+
+    result.task_id = spec.suite_id
+    if suite_path.stem != spec.suite_id:
+        result.warnings.append(
+            f"filename stem {suite_path.stem!r} does not match suite_id {spec.suite_id!r}"
+        )
+
+    try:
+        index = loader.index_tasks(tasks_dir)
+    except loader.SuiteLoadError as exc:
+        result.errors.append(str(exc))
+        return result
+
+    for task_id in spec.task_ids:
+        if task_id not in index:
+            result.errors.append(
+                f"task_ids: {task_id!r} matches no task under {Path(tasks_dir)}/"
+            )
+    return result
+
+
 def validate_tasks(
     tasks_dir: str | Path = DEFAULT_TASKS_DIR, repo_root: str | Path | None = None
 ) -> ValidationReport:
-    """Validate every task under ``tasks_dir`` and return an aggregate report."""
+    """Validate every task and suite under ``tasks_dir`` and return an aggregate report."""
     base = Path(tasks_dir)
     root = Path(repo_root) if repo_root is not None else loader.find_repo_root(base)
     report = ValidationReport(tasks_dir=base)
-    for task_file in loader.discover_task_files(base):
+
+    task_files, suite_files = loader.discover_documents(base)
+    for task_file in task_files:
         report.results.append(validate_task_file(task_file, root))
+    for suite_file in suite_files:
+        report.results.append(validate_suite_file(suite_file, base))
     return report
 
 
@@ -237,8 +303,8 @@ def format_report(report: ValidationReport) -> str:
     lines.append("")
     for res in report.results:
         flag = "ok  " if res.ok else "FAIL"
-        rel = res.path
-        lines.append(f"[{flag}] {rel}")
+        suffix = " (suite)" if res.kind == SUITE else ""
+        lines.append(f"[{flag}] {res.path}{suffix}")
         for err in res.errors:
             lines.append(f"        error:   {err}")
         for warn in res.warnings:
@@ -247,7 +313,8 @@ def format_report(report: ValidationReport) -> str:
     lines.append("")
     lines.append(
         f"Summary   : {report.n_ok} ok, {report.n_failed} failed, "
-        f"{report.n_warnings} warning(s) across {len(report.results)} task(s)."
+        f"{report.n_warnings} warning(s) across {report.n_tasks} task(s) "
+        f"and {report.n_suites} suite(s)."
     )
     lines.append(f"Overall   : {'VALID' if report.ok else 'INVALID'}")
     return "\n".join(lines)
@@ -268,9 +335,12 @@ def main(argv: list[str] | None = None) -> int:
 
 __all__ = [
     "DEFAULT_TASKS_DIR",
+    "TASK",
+    "SUITE",
     "TaskValidation",
     "ValidationReport",
     "validate_task_file",
+    "validate_suite_file",
     "validate_tasks",
     "format_report",
     "run",

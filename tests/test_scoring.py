@@ -50,15 +50,20 @@ SLB = SupportLabel
 RS = ReproductionStatus
 FM = FailureMode
 
-# Every committed fixture, by the path `verify` takes.
+# Every committed fixture, by the path `verify` takes. Kept in step with
+# `tasks/smoke_suite.yaml`, which runs the same set (see tests/test_suite.py).
 FIXTURES = {
     "accuracy_improvement": "table_claims/accuracy_improvement.yaml",
     "contradicted_f1": "table_claims/contradicted_f1.yaml",
     "dataset_mean": "statistical_claims/dataset_mean.yaml",
+    "dataset_mean_overstated": "statistical_claims/dataset_mean_overstated.yaml",
+    "dataset_std": "statistical_claims/dataset_std.yaml",
     "gc_content": "bioinformatics_claims/gc_content.yaml",
+    "negated_training_data": "ml_claims/negated_training_data.yaml",
     "recompute_accuracy": "code_reproduction/recompute_accuracy.yaml",
     "synthetic_data_passage": "ml_claims/synthetic_data_passage.yaml",
     "underspecified_split": "ml_claims/underspecified_split.yaml",
+    "unreproducible_accuracy": "code_reproduction/unreproducible_accuracy.yaml",
 }
 
 
@@ -617,7 +622,23 @@ EXPECTED_VERDICTS = {
     "accuracy_improvement": (SLB.SUPPORTED, RS.NOT_APPLICABLE, FM.NONE),
     "contradicted_f1": (SLB.CONTRADICTED, RS.NOT_APPLICABLE, FM.TABLE_CELL_MISMATCH),
     "dataset_mean": (SLB.SUPPORTED, RS.REPRODUCED, FM.NONE),
+    # Recomputation refutes the claimed mean: contradiction through the dataset
+    # channel, where `contradicted_f1` reaches it through a table cell.
+    "dataset_mean_overstated": (
+        SLB.CONTRADICTED,
+        RS.FAILED_NUMERIC_MISMATCH,
+        FM.STATISTIC_MISMATCH,
+    ),
+    # pstdev = 1.1298967…, inside the ±0.05 the claim's one decimal place admits but
+    # not on it: the one fixture separating `reproduced` from its approximate cousin.
+    "dataset_std": (SLB.SUPPORTED, RS.APPROXIMATELY_REPRODUCED, FM.NONE),
     "gc_content": (SLB.SUPPORTED, RS.REPRODUCED, FM.NONE),
+    # The passage carries every token of the claim and negates it.
+    "negated_training_data": (
+        SLB.CONTRADICTED,
+        RS.NOT_APPLICABLE,
+        FM.PASSAGE_DOES_NOT_ASSERT,
+    ),
     "recompute_accuracy": (SLB.SUPPORTED, RS.REPRODUCED, FM.NONE),
     "synthetic_data_passage": (
         SLB.UNVERIFIABLE_FROM_ARTIFACTS,
@@ -625,6 +646,13 @@ EXPECTED_VERDICTS = {
         FM.EVIDENCE_UNDECIDABLE,
     ),
     "underspecified_split": (SLB.UNDERSPECIFIED, RS.NOT_APPLICABLE, FM.UNDERSPECIFIED),
+    # The script will not run, so nothing is learned about its number. The text still
+    # supports the claim, and a script that cannot run refutes nothing.
+    "unreproducible_accuracy": (
+        SLB.PARTIALLY_SUPPORTED,
+        RS.FAILED_ENVIRONMENT,
+        FM.EXECUTION_ERROR,
+    ),
 }
 
 
@@ -754,13 +782,14 @@ def test_the_committed_fixtures_produce_no_wrong_verdicts() -> None:
         task, _, scored = verify(name)
         outcomes.append(V.outcome_of(task, scored))
     result = summary.summarize(outcomes)
+    n = len(FIXTURES)
 
-    assert result.n_tasks == 7
+    assert result.n_tasks == n
     assert result.wrong_verdicts == ()
     assert result.conservative_misses == ("synthetic_data_passage",)
-    assert result.support_agreement == 6
-    assert result.reproduction_agreement == 7
-    assert result.failure_agreement == 6
+    assert result.support_agreement == n - 1
+    assert result.reproduction_agreement == n
+    assert result.failure_agreement == n - 1
 
 
 # ---------------------------------------------------------------------------

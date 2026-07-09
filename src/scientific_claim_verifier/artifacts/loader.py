@@ -1,4 +1,4 @@
-"""The on-disk task format and its loader.
+"""The on-disk task and suite formats, and their loaders.
 
 A *task* is the unit the pipeline runs on: a claim plus the bundle of artifacts
 it will be checked against, plus a *gold* record of what the answer should be
@@ -20,25 +20,39 @@ values an extractor should recover (``expected_value``, ``metrics``, …) live i
 answer to the extraction milestone (M3); it only supplies the input and,
 separately, the yardstick.
 
-Nothing here verifies a claim — loading and hashing only.
+Suites (Milestone 8)
+--------------------
+A *suite* names an ordered set of tasks to run together (:class:`SuiteSpec`), and
+lives beside them under ``tasks/``. Because both formats share a directory and a
+file extension, they are told apart by content, not by filename: a document with a
+top-level ``suite_id`` is a suite, and anything else is a task. A file that does
+not parse at all is treated as a task, so ``validate-fixtures`` reports its parse
+error rather than silently skipping it. See :func:`discover_documents`.
+
+Nothing here verifies a claim — loading, resolution, and hashing only.
 """
 
 from __future__ import annotations
 
 import csv
 import json
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .. import schemas as S
 from . import hashing
 
-# File extensions recognised as task definitions.
+# File extensions recognised as task or suite definitions.
 TASK_SUFFIXES = (".yaml", ".yml", ".json")
+
+# The top-level key that marks a document as a suite rather than a task.
+SUITE_KEY = "suite_id"
 
 # Fixture files must live under this repo-relative directory. Enforced so a task
 # can only reference small committed fixtures, never arbitrary paths on disk.
@@ -47,6 +61,10 @@ FIXTURE_ROOT = "data/fixtures"
 
 class TaskLoadError(Exception):
     """Raised when a task file cannot be parsed, resolved, or hashed."""
+
+
+class SuiteLoadError(Exception):
+    """Raised when a suite file cannot be parsed, or names a task that does not exist."""
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +162,78 @@ class TaskSpec(_TaskModel):
     expected: TaskExpectation
     tolerance: TaskTolerance | None = None
     notes: str | None = None
+
+
+class SuiteExpectation(_TaskModel):
+    """What a suite run is expected to look like, so drift fails loudly.
+
+    Only ``conservative_misses`` is declarable — the tasks whose gold support label
+    the pipeline is known *not* to recover, because its methods report that they
+    cannot decide rather than guessing. Wrong verdicts have no entry here on
+    purpose: a suite file must not be able to bless one. See
+    :mod:`scientific_claim_verifier.suite`.
+    """
+
+    conservative_misses: list[str] = Field(default_factory=list)
+
+
+class SuiteSpec(_TaskModel):
+    """A named, ordered set of tasks run together as a smoke/benchmark suite.
+
+    ``task_ids`` references tasks by their ``task_id``, not by path: a suite says
+    *what* to run, and :func:`index_tasks` resolves *where* each task lives. That
+    keeps a suite stable when a task is moved between family directories.
+    """
+
+    suite_id: str = Field(min_length=1)
+    name: str | None = None
+    description: str | None = None
+    version: str | None = None
+    task_ids: list[str] = Field(min_length=1)
+    expected: SuiteExpectation = Field(default_factory=SuiteExpectation)
+    notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _coherent(self) -> SuiteSpec:
+        dupes = sorted(task for task, n in Counter(self.task_ids).items() if n > 1)
+        if dupes:
+            raise ValueError(f"duplicate task_id in suite: {', '.join(dupes)}")
+        unknown = sorted(set(self.expected.conservative_misses) - set(self.task_ids))
+        if unknown:
+            raise ValueError(
+                f"expected.conservative_misses names tasks not in the suite: {', '.join(unknown)}"
+            )
+        return self
+
+    @property
+    def benchmark_suite(self) -> S.BenchmarkSuite:
+        """The Milestone 1 :class:`~scientific_claim_verifier.schemas.BenchmarkSuite` view."""
+        return S.BenchmarkSuite(
+            suite_id=self.suite_id,
+            name=self.name,
+            description=self.description,
+            task_ids=list(self.task_ids),
+            version=self.version,
+            metadata=dict(self.metadata),
+        )
+
+
+@dataclass
+class LoadedSuite:
+    """A parsed suite whose every ``task_id`` has been resolved to a task file."""
+
+    path: Path
+    spec: SuiteSpec
+    task_paths: list[Path]
+
+    @property
+    def suite_id(self) -> str:
+        return self.spec.suite_id
+
+    @property
+    def size(self) -> int:
+        return len(self.task_paths)
 
 
 @dataclass
@@ -338,23 +428,125 @@ def load_task(path: str | Path, repo_root: str | Path | None = None) -> LoadedTa
     return LoadedTask(path=task_path, spec=spec, content_hashes=content_hashes)
 
 
+# ---------------------------------------------------------------------------
+# Discovery: telling tasks and suites apart by content
+# ---------------------------------------------------------------------------
+
+
+def is_suite_document(data: Mapping[str, Any]) -> bool:
+    """True if a parsed document declares a suite (it has a top-level ``suite_id``)."""
+    return SUITE_KEY in data
+
+
+def _read_document(path: Path) -> dict[str, Any] | None:
+    """Parse ``path`` into a mapping, or ``None`` if it does not parse into one.
+
+    Deliberately swallows the parse error: this function only *classifies* files.
+    An unparseable file is classified as a task so that
+    :mod:`scientific_claim_verifier.artifacts.validation` reports its error rather
+    than skipping it as "not a task".
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+        return parse_task_data(text, is_json=path.suffix.lower() == ".json")
+    except (OSError, TaskLoadError, yaml.YAMLError, json.JSONDecodeError):
+        return None
+
+
+def discover_documents(tasks_dir: str | Path) -> tuple[list[Path], list[Path]]:
+    """Return ``(task_files, suite_files)`` under ``tasks_dir``, each sorted.
+
+    Files are classified by content (see :func:`is_suite_document`), so a suite may
+    sit beside the tasks it names without either loader tripping over the other.
+    """
+    base = Path(tasks_dir)
+    candidates = sorted(
+        p for p in base.rglob("*") if p.is_file() and p.suffix.lower() in TASK_SUFFIXES
+    )
+    tasks: list[Path] = []
+    suites: list[Path] = []
+    for path in candidates:
+        data = _read_document(path)
+        target = suites if data is not None and is_suite_document(data) else tasks
+        target.append(path)
+    return tasks, suites
+
+
 def discover_task_files(tasks_dir: str | Path) -> list[Path]:
     """Return every task file under ``tasks_dir``, sorted for stable ordering."""
-    base = Path(tasks_dir)
-    files = [p for p in base.rglob("*") if p.is_file() and p.suffix.lower() in TASK_SUFFIXES]
-    return sorted(files)
+    return discover_documents(tasks_dir)[0]
+
+
+def discover_suite_files(tasks_dir: str | Path) -> list[Path]:
+    """Return every suite file under ``tasks_dir``, sorted for stable ordering."""
+    return discover_documents(tasks_dir)[1]
+
+
+def index_tasks(tasks_dir: str | Path) -> dict[str, Path]:
+    """Map every discoverable ``task_id`` under ``tasks_dir`` to its file.
+
+    Only the ``task_id`` field is read, so a task with a schema error elsewhere is
+    still resolvable by a suite (and still reported by ``validate-fixtures``).
+    Raises :class:`SuiteLoadError` if two files declare the same ``task_id`` — a
+    suite referencing that id could not say which it meant.
+    """
+    index: dict[str, Path] = {}
+    for path in discover_task_files(tasks_dir):
+        data = _read_document(path)
+        if data is None:
+            continue
+        task_id = data.get("task_id")
+        if not isinstance(task_id, str) or not task_id:
+            continue
+        if task_id in index:
+            raise SuiteLoadError(
+                f"duplicate task_id {task_id!r} in {index[task_id]} and {path}"
+            )
+        index[task_id] = path
+    return index
+
+
+def load_suite(path: str | Path, tasks_dir: str | Path | None = None) -> LoadedSuite:
+    """Parse the suite at ``path`` and resolve each ``task_id`` to a task file.
+
+    ``tasks_dir`` defaults to the suite file's own directory. Raises
+    :class:`SuiteLoadError` if the document is not a suite or names an unknown task,
+    and ``pydantic.ValidationError`` if it fails the schema.
+    """
+    suite_path = Path(path)
+    base = Path(tasks_dir) if tasks_dir is not None else suite_path.parent
+
+    data = parse_task_data(
+        suite_path.read_text(encoding="utf-8"), is_json=suite_path.suffix.lower() == ".json"
+    )
+    if not is_suite_document(data):
+        raise SuiteLoadError(f"{suite_path} is not a suite: no top-level {SUITE_KEY!r} key")
+    spec = SuiteSpec.model_validate(data)
+
+    index = index_tasks(base)
+    unknown = [task_id for task_id in spec.task_ids if task_id not in index]
+    if unknown:
+        raise SuiteLoadError(
+            f"suite {spec.suite_id!r} names task(s) not found under {base}/: {', '.join(unknown)}"
+        )
+    return LoadedSuite(path=suite_path, spec=spec, task_paths=[index[t] for t in spec.task_ids])
 
 
 __all__ = [
     "TASK_SUFFIXES",
+    "SUITE_KEY",
     "FIXTURE_ROOT",
     "TaskLoadError",
+    "SuiteLoadError",
     "ClaimInput",
     "GoldClaim",
     "TaskExpectation",
     "TaskTolerance",
     "TaskSpec",
     "LoadedTask",
+    "SuiteExpectation",
+    "SuiteSpec",
+    "LoadedSuite",
     "find_repo_root",
     "resolve_fixture_path",
     "is_under_fixture_root",
@@ -364,5 +556,10 @@ __all__ = [
     "read_csv_column",
     "check_csv_shape",
     "load_task",
+    "is_suite_document",
+    "discover_documents",
     "discover_task_files",
+    "discover_suite_files",
+    "index_tasks",
+    "load_suite",
 ]

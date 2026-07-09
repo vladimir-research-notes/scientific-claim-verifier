@@ -199,14 +199,15 @@ is unit-tested against synthetic figures. Figure *recomputation* lands with M5.
 - **loose** keys on `(kind, target_id)` — "did it find the right artifact at all?"
 
 Keys compare as **sets**, so two gold links into the same table collapse to one
-loose key (hence 14 strict / 13 loose links across the seven fixtures).
+loose key (hence 21 strict / 20 loose links across the eleven fixtures — the two
+`accuracy_improvement` table cells share a table).
 
 `quote` is deliberately **not** compared. Gold quotes are hand-trimmed spans; the
 linker quotes the best-matching whole sentence. Scoring a rule-based system on
 reproducing hand-authored spans would be overclaiming — the same reason M3 does
 not score `normalized_claim`.
 
-### Results on the seven committed fixtures
+### Results on the eleven committed fixtures
 
 Reproduce with `python3 -m pytest tests/test_linking.py -q`, or per task with
 `claimverifier link-evidence --task <task.yaml> --no-declared-source`.
@@ -218,23 +219,28 @@ Blind (`--no-declared-source`), strict keys:
 | `accuracy_improvement` | 3 | 3 | 0 |
 | `contradicted_f1` | 2 | 2 | 0 |
 | `dataset_mean` | 2 | 2 | 0 |
+| `dataset_mean_overstated` | 2 | 2 | 0 |
+| `dataset_std` | 2 | 2 | 0 |
 | `gc_content` | 2 | 2 | 0 |
+| `negated_training_data` | 1 | 1 | 0 |
 | `recompute_accuracy` | 2 | 2 | 0 |
 | `synthetic_data_passage` | 1 | 1 | 0 |
 | `underspecified_split` | 2 | 2 | 0 |
-| **total** | **14** | **14** | **0** |
+| `unreproducible_accuracy` | 2 | 2 | 0 |
+| **total** | **21** | **21** | **0** |
 
 Strict precision 1.00, recall 1.00. Honouring the declared `source_passage` gives
-the same 14/14 (it changes the passage link's *method*, not its target).
+the same 21/21 (it changes the passage link's *method*, not its target).
 
 ### How to read this
 
-**This is a consistency check, not a benchmark.** Seven hand-authored fixtures, and
+**This is a consistency check, not a benchmark.** Eleven hand-authored fixtures, and
 the locator conventions (`row=…,col=…`, `col=…`, `column=…`, `stdout`) plus the
 table row rule were written with the committed table fixtures in view. A
-14/14 means *"the linker reproduces the hand-authored provenance exactly, and
+21/21 means *"the linker reproduces the hand-authored provenance exactly, and
 invents nothing"* — a real property, and the one M5 depends on. It does **not**
-mean retrieval is solved.
+mean retrieval is solved. The count moves whenever a fixture is added; the **zeros
+are the invariant**, and they are what the test asserts.
 
 The informative numbers are the passage overlap scores, because that is the only
 channel where the outcome was not forced by an identifier:
@@ -242,13 +248,14 @@ channel where the outcome was not forced by an identifier:
 | Task | Best passage | Overlap | Runner-up | Overlap |
 | --- | --- | --- | --- | --- |
 | `synthetic_data_passage` | `p_data` | **0.211** | `p_hardware` | **0.000** |
+| `negated_training_data` | `p_corpora` | **0.571** | `p_eval_corpora` | **0.182** |
 | `accuracy_improvement` | `p_results` | 0.824 (also verbatim) | `p_setup` | 0.308 |
 | `underspecified_split` | `p_headline` | 1.000 (verbatim) | `p_detail` | 0.154 |
 
 The three single-passage bundles (`dataset_mean` 1.000, `recompute_accuracy` 0.625,
 `gc_content` 0.588) have no runner-up, so their scores test nothing about ranking.
 
-`synthetic_data_passage` is the one fixture where keyword overlap is genuinely
+`synthetic_data_passage` is the fixture where keyword overlap is most genuinely
 load-bearing: the claim *"The model is trained only on synthetic data"* appears
 nowhere verbatim, and the linker must separate the passage that paraphrases it
 (0.211) from a distractor about compute hardware (0.000). It does — but note that
@@ -256,6 +263,12 @@ nowhere verbatim, and the linker must separate the passage that paraphrases it
 `data`). The margin comes from the distractor being *completely* unrelated. A
 harder distractor that shared vocabulary without asserting the claim would not be
 separated by this baseline. That is the honest limit of bag-of-words retrieval.
+
+`negated_training_data` (M8) shows the two halves of that limit together. Its winning
+passage **negates** the claim and still scores 0.571 — retrieval says *"look here"*,
+never *"this supports it"*, which is exactly why `evidence_presence` is a separate
+check (M5). And its distractor's strongest word never counts at all: `corpus` does
+not match `corpora`, so morphology costs the runner-up most of its overlap.
 
 ## CLI
 

@@ -31,7 +31,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 7 complete — scoring &amp; failure modes</span> &nbsp; <span class="status planned">Milestone 8 next: smoke suite</span></p>
+  <p><span class="status done">status: Milestone 8 complete — offline smoke suite</span> &nbsp; <span class="status planned">Milestone 9 next: reports</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -71,17 +71,17 @@
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). Eight commands are live now; <code>run-suite</code> and
-  <code>report</code> come online with their subsystems.</p>
+  <code>pyyaml</code>). Nine commands are live now; only <code>report</code> is still to come.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
 claimverifier check-env          # offline interpreter + library self-check
-claimverifier validate-fixtures  # validate task fixtures under tasks/
+claimverifier validate-fixtures  # validate task and suite fixtures under tasks/
 claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml
 claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml
 claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
 claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.yaml
 claimverifier verify         --task tasks/ml_claims/underspecified_split.yaml
+claimverifier run-suite      --out results/runs/   # all 11 tasks, offline, ~1.5 s
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
   <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
   the task's gold target — the audit trail is the product, not a side effect:</p>
@@ -182,10 +182,52 @@ Task gold       : supported [MISS] / not_applicable [ok ] / none [MISS]</code></
   <p>The passage <em>does</em> support the claim — a human reads the paraphrase instantly. A
   bag-of-words rule cannot, so it says <code>inconclusive</code>, and scoring maps that to
   <strong><code>unverifiable_from_artifacts</code>, never <code>contradicted</code></strong>. The
-  report marks its own miss. Across the seven fixtures the pipeline gets 6/7 support labels and
-  7/7 reproduction statuses, but the number that matters is <strong>0 wrong verdicts</strong>: it
+  report marks its own miss. Across the eleven fixtures the pipeline gets 10/11 support labels and
+  11/11 reproduction statuses, but the number that matters is <strong>0 wrong verdicts</strong>: it
   has never asserted a label the gold outcome disagrees with. Its one miss is a refusal to decide.
   See <a href="results.html">Results</a>.</p>
+
+  <h2>The smoke suite is a gate, not a scoreboard</h2>
+  <p><code>claimverifier run-suite</code> drives all eleven committed tasks through the whole
+  pipeline — offline, on one core, in about a second and a half — and writes a JSONL trace and a
+  result JSON per task alongside <code>summary.csv</code>, <code>summary.json</code>, and
+  <code>summary.txt</code>. It exits non-zero when the pipeline <em>regresses</em>, and the
+  definition of regression is deliberately asymmetric:</p>
+  <ul>
+    <li>Any <strong>wrong verdict</strong> — a committal support label the task's gold outcome
+      disagrees with — fails the run. The suite file has <em>no key</em> that could declare one
+      acceptable, so it can never bless one.</li>
+    <li>A <strong>conservative miss</strong> — declining to decide where the gold outcome commits —
+      fails the run only if the <em>set</em> of them changed. The suite file names the standing
+      misses; a new one is a regression, and a fixed one must be removed rather than left to rot.</li>
+  </ul>
+  <p>That asymmetry is the whole point. A change that raises label accuracy by turning a claim the
+  pipeline honestly declined to decide into one it decides <em>wrongly</em> has made the tool worse,
+  and a single accuracy number would have called it an improvement. A suite full of
+  <code>contradicted</code> claims exits <strong>0</strong> — finding a contradiction is the tool
+  working.</p>
+  <pre><code>$ claimverifier run-suite --out results/runs/
+
+Suite : smoke_suite (Offline smoke suite) v1    Tasks : 11
+
+  [shy ] synthetic_data_passage   unverifiable_from_artifacts / not_applicable / evidence_undecidable
+         gold: supported / not_applicable / none
+  [ok  ] negated_training_data    contradicted / not_applicable / passage_does_not_assert
+  [ok  ] contradicted_f1          contradicted / not_applicable / table_cell_mismatch
+  [ok  ] underspecified_split     underspecified / not_applicable / underspecified
+  [ok  ] dataset_std              supported / approximately_reproduced / none
+  [ok  ] dataset_mean_overstated  contradicted / failed_numeric_mismatch / statistic_mismatch
+  [ok  ] unreproducible_accuracy  partially_supported / failed_environment / execution_error
+  ... (4 more)
+
+Wrong verdicts      : 0
+Conservative misses : 1 ['synthetic_data_passage']
+
+Gate            : PASS</code></pre>
+  <p>The gate is tested by <em>injecting</em> each failure in turn — a wrong verdict, a new
+  conservative miss, a stale declared miss — and asserting it rejects the run. A gate that never
+  fails proves nothing when it passes.</p>
+
   <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
   the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>
 

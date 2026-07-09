@@ -30,7 +30,7 @@
   <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
   run, each committed locally with docs and website updated. Guards between milestones require a
   new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
-  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status done">M2 complete</span> &nbsp; <span class="status done">M3 complete</span> &nbsp; <span class="status done">M4 complete</span> &nbsp; <span class="status done">M5 complete</span> &nbsp; <span class="status done">M6 complete</span> &nbsp; <span class="status done">M7 complete</span> &nbsp; <span class="status planned">Milestones 8–13 pending</span></p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status done">M2 complete</span> &nbsp; <span class="status done">M3 complete</span> &nbsp; <span class="status done">M4 complete</span> &nbsp; <span class="status done">M5 complete</span> &nbsp; <span class="status done">M6 complete</span> &nbsp; <span class="status done">M7 complete</span> &nbsp; <span class="status done">M8 complete</span> &nbsp; <span class="status planned">Milestones 9–13 pending</span></p>
 
   <h2>Bootstrap (done)</h2>
   <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
@@ -122,7 +122,7 @@
   that inference is M7's. Reachable via <code>claimverifier run-checks</code>; documented in
   <code>docs/CHECKS.md</code>, with measured results on <a href="results.html">Results</a>.
   <span class="pill ok">114 new tests</span> <span class="pill ok">285 total</span>
-  <span class="pill ok">18 checks: 16 pass, 1 fail, 1 inconclusive</span>
+  <span class="pill ok">at M5: 18 checks — 16 pass, 1 fail, 1 inconclusive</span>
   <span class="pill ok">7 fixtures valid</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M6 — Reproducibility sandbox <span class="pill ok">done</span></h3>
@@ -139,11 +139,11 @@
   first event is the policy — before the number — and two runs of one script produce byte-identical
   bytes, because wall-clock duration is the one value the trace omits unless asked. It landed behind
   the <code>ScriptRunner</code> protocol M5 introduced, so <strong>no verdict moved</strong>: the
-  check table is still 16 pass / 1 fail / 1 inconclusive. These are reproducibility controls, not
+  check table stayed 16 pass / 1 fail / 1 inconclusive. These are reproducibility controls, not
   isolation — see <a href="limitations.html">Limitations</a>. Reachable via
   <code>claimverifier run-sandbox</code>; documented in <code>docs/SANDBOX.md</code>.
   <span class="pill ok">61 new tests</span> <span class="pill ok">346 total</span>
-  <span class="pill ok">2/2 code fixtures reproduce</span>
+  <span class="pill ok">at M6: 2/2 code fixtures reproduce</span>
   <span class="pill ok">byte-identical traces</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M7 — Scoring &amp; failure modes <span class="pill ok">done</span></h3>
@@ -161,8 +161,8 @@
   <code>not_applicable</code> rather than inflated into reproduced results. A new
   <code>evidence_undecidable</code> failure mode (schema 1.2) gives M5's <code>inconclusive</code>
   status somewhere honest to land: recording <code>passage_does_not_assert</code> there would
-  publish the checker's ignorance as a fact about the paper. Over the seven fixtures: 6/7 support
-  labels, 7/7 reproduction statuses, and — the number that matters — <strong>0 wrong
+  publish the checker's ignorance as a fact about the paper. Over the (then seven) fixtures: 6/7
+  support labels, 7/7 reproduction statuses, and — the number that matters — <strong>0 wrong
   verdicts</strong>, its single miss being a refusal to decide. Reachable via
   <code>claimverifier verify</code>; documented in <code>docs/SCORING.md</code>, with measured
   results on <a href="results.html">Results</a>.
@@ -170,9 +170,29 @@
   <span class="pill ok">0 wrong verdicts</span> <span class="pill">1 conservative miss</span>
   <span class="pill ok">byte-identical traces</span> <span class="pill ok">ruff clean</span></p>
 
-  <h3>M8 — Smoke suite <span class="pill">planned</span></h3>
-  <p>8–15 verification tasks run fully offline; saved run traces, results, a summary CSV/JSON,
-  and generated reports. Drives the <a href="results.html">Results</a> page.</p>
+  <h3>M8 — Smoke suite <span class="pill ok">done</span></h3>
+  <p>Eleven claim-verification tasks driven end to end — extraction, linking, checks, sandboxed
+  execution, scoring — offline, on one core, in about a second and a half, writing a JSONL trace
+  and a result JSON per task plus <code>summary.csv</code>, <code>summary.json</code>, and
+  <code>summary.txt</code>. <strong>The suite is a gate, not a scoreboard, and the gate is
+  asymmetric</strong>: any <em>wrong verdict</em> fails the run, while a <em>conservative miss</em>
+  fails only if the set of them changed. The suite file names the standing misses and has
+  <strong>no key for wrong verdicts</strong>, so it cannot bless one — a change that raises label
+  accuracy by turning a claim the pipeline honestly declined to decide into one it decides
+  <em>wrongly</em> has made the tool worse. The fixture set grew from seven tasks to eleven,
+  because the original seven never produced <code>partially_supported</code>,
+  <code>approximately_reproduced</code>, <code>failed_numeric_mismatch</code>,
+  <code>failed_environment</code>, <code>statistic_mismatch</code>,
+  <code>passage_does_not_assert</code>, or <code>execution_error</code> — seven vocabulary values
+  with no task behind them. The four new fixtures, authored <em>after</em> the M7 rule table was
+  frozen, reach them, and each landed on its hand-written gold outcome with no change to any
+  pipeline stage. One of them, <code>reproduce_from_predictions.py</code>, is the first fixture that
+  <strong>fails on purpose</strong>: a complete, working script whose data the paper never released.
+  Reachable via <code>claimverifier run-suite</code>; measured on
+  <a href="results.html">Results</a>.
+  <span class="pill ok">48 new tests</span> <span class="pill ok">500 total</span>
+  <span class="pill ok">11 tasks · 26 checks</span> <span class="pill ok">0 wrong verdicts</span>
+  <span class="pill ok">gate PASS</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M9 — Reports <span class="pill">planned</span></h3>
   <p>Markdown (+ optional HTML) reports from traces: input/extracted claim, evidence, checks,

@@ -585,7 +585,7 @@ def test_aggregate_linking_scores_sums_counts() -> None:
 
 
 def test_blind_linking_reproduces_every_gold_link() -> None:
-    """The headline number: without the declared source_passage, 14/14 gold links."""
+    """The headline number: without the declared source_passage, 21/21 gold links."""
     scores = []
     for task in load_all_tasks():
         result = link_task(task, blind=True)
@@ -596,7 +596,9 @@ def test_blind_linking_reproduces_every_gold_link() -> None:
         )
         scores.append(score)
     total = linking.aggregate_linking_scores(scores)
-    assert (total.strict.tp, total.strict.fp, total.strict.fn) == (14, 0, 0)
+    # Every gold link recovered, nothing invented. The count moves when fixtures are
+    # added; the zeros are the invariant.
+    assert (total.strict.tp, total.strict.fp, total.strict.fn) == (21, 0, 0)
 
 
 def test_declared_source_linking_also_reproduces_every_gold_link() -> None:

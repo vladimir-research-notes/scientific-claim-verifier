@@ -8,13 +8,19 @@ that do not exist yet are marked pending, not estimated.
 
 | Result | Milestone | State |
 | --- | --- | --- |
-| Fixture validation | M2 | 7/7 tasks valid |
+| Fixture validation | M2 | 11/11 tasks + 1 suite valid |
 | Claim extraction vs. gold | M3 | measured below |
 | Evidence linking vs. gold | M4 | measured below |
 | Verification checks | M5 | measured below |
 | Sandbox reproduction | M6 | measured below |
 | Support labels / failure modes | M7 | measured below |
-| Smoke suite (8–15 tasks, end to end) | M8 | pending |
+| Smoke suite (8–15 tasks, end to end) | M8 | 11 tasks, gate PASS |
+
+> **The fixture set grew in M8**, from seven tasks to eleven, so that the smoke suite
+> could reach the labels and statuses the original seven never produced —
+> `partially_supported`, `approximately_reproduced`, `failed_numeric_mismatch`,
+> `failed_environment`, `statistic_mismatch`, `passage_does_not_assert`,
+> `execution_error`. Every number below is measured over all eleven.
 
 ## M2 — fixture validation
 
@@ -22,11 +28,26 @@ that do not exist yet are marked pending, not estimated.
 python3 scripts/01_validate_fixtures.py
 ```
 
-7 tasks ok, 0 failed, 0 warnings — `VALID`. The committed tasks span the families
-in `docs/PLAN.md` §7: numeric table, dataset statistic, evidence passage,
-underspecified, contradiction, code reproduction, and a bioinformatics GC toy. Six
-were authored in M2; `contradicted_f1` was added in M5 to exercise the `fail` path
-of the table check with a real task rather than a synthetic one.
+11 tasks ok, 1 suite ok, 0 failed, 0 warnings — `VALID`. The committed tasks span the
+families in `docs/PLAN.md` §7: numeric table, dataset statistic, evidence passage,
+underspecified, contradiction, code reproduction, and a bioinformatics GC toy. Six were
+authored in M2; `contradicted_f1` was added in M5 to exercise the `fail` path of the
+table check with a real task; four more in M8 (below). The suite file
+`tasks/smoke_suite.yaml` is validated too: it is invalid if it names a `task_id` no task
+declares.
+
+### Fixtures added in M8
+
+Each was authored to reach a verdict no existing fixture could, and each landed on its
+hand-written gold outcome on the first run — extraction, linking, checks, and scoring all
+unchanged.
+
+| Task | Reaches | Gold outcome |
+| --- | --- | --- |
+| `dataset_std` | `approximately_reproduced` | supported / approximately_reproduced / none |
+| `dataset_mean_overstated` | contradiction via **recomputation** | contradicted / failed_numeric_mismatch / statistic_mismatch |
+| `unreproducible_accuracy` | a script that will not run | partially_supported / failed_environment / execution_error |
+| `negated_training_data` | contradiction via **polarity** | contradicted / not_applicable / passage_does_not_assert |
 
 ## M3 — rule-based claim extraction
 
@@ -36,44 +57,37 @@ claimverifier extract-claims --task <task.yaml>          # per-task report vs. g
 ```
 
 Per-field recovery of the rule-based extractor against each task's gold
-extraction target (`expected.claim`), over all seven committed fixtures. List
+extraction target (`expected.claim`), over all eleven committed fixtures. List
 fields compare as sets; floats with `math.isclose`. `normalized_claim` is not
 scored — it is the extractor's own canonical notation, not a gold match target
 (see `docs/EXTRACTION.md`).
 
 | Field | Recovered | Channel |
 | --- | --- | --- |
-| `expected_value` | 7/7 | reliable |
-| `baseline_value` | 7/7 | reliable |
-| `comparison_operator` | 7/7 | reliable |
-| `units` | 7/7 | reliable |
-| `metrics` | 7/7 | reliable |
-| `datasets` | 7/7 | best effort |
-| `entities` | 7/7 | best effort |
-| `conditions` | **6/7** | best effort |
+| `expected_value` | 11/11 | reliable |
+| `baseline_value` | 11/11 | reliable |
+| `comparison_operator` | 11/11 | reliable |
+| `units` | 11/11 | reliable |
+| `metrics` | 11/11 | reliable |
+| `datasets` | 11/11 | best effort |
+| `entities` | 11/11 | best effort |
+| `conditions` | **10/11** | best effort |
 
-Per-task scored-field totals (8 fields each):
-
-| Task | Claim type | Score |
-| --- | --- | --- |
-| `accuracy_improvement` | `comparison_claim` | 8/8 |
-| `contradicted_f1` | `numeric_claim` | 8/8 |
-| `dataset_mean` | `dataset_claim` | 8/8 |
-| `gc_content` | `code_reproduction_claim` | 8/8 |
-| `recompute_accuracy` | `code_reproduction_claim` | 8/8 |
-| `underspecified_split` | `numeric_claim` | 8/8 |
-| `synthetic_data_passage` | `descriptive_claim` | 7/8 |
+Every fixture scores 8/8 on the eight scored fields except `synthetic_data_passage`,
+which scores 7/8 (see below). The four fixtures added in M8 needed no extractor change:
+`standard deviation` was already in the metric lexicon, and the failing script's claim
+resolves its `.py` filename by basename like any other.
 
 ### How to read this
 
-These seven fixtures are a **sanity check, not a benchmark**. They are hand-authored,
+These eleven fixtures are a **sanity check, not a benchmark**. They are hand-authored,
 and the extractor's lexicons (metrics, known dataset names, role entities) were
-chosen with them in view. A `7/7` on `datasets` means "every dataset mention
+chosen with them in view. An `11/11` on `datasets` means "every dataset mention
 present in these fixtures was found" — it does not mean dataset extraction is
 solved. Extraction is a clearly-labelled heuristic (regexes plus small closed
 lexicons); see `docs/EXTRACTION.md` for every rule and its known limits.
 
-The **`6/7` on `conditions` is the most informative number here.** The miss is
+The **`10/11` on `conditions` is the most informative number here.** The miss is
 `synthetic_data_passage`: gold expects the semantic condition
 `"synthetic data only"` for the claim *"The model is trained only on synthetic
 data."* The extractor recovers only sample-count conditions (`n = 12`) and returns
@@ -138,23 +152,28 @@ column, not merely the right table. `quote` is not compared (see
 | `accuracy_improvement` | 3 | 3 | 0 |
 | `contradicted_f1` | 2 | 2 | 0 |
 | `dataset_mean` | 2 | 2 | 0 |
+| `dataset_mean_overstated` | 2 | 2 | 0 |
+| `dataset_std` | 2 | 2 | 0 |
 | `gc_content` | 2 | 2 | 0 |
+| `negated_training_data` | 1 | 1 | 0 |
 | `recompute_accuracy` | 2 | 2 | 0 |
 | `synthetic_data_passage` | 1 | 1 | 0 |
 | `underspecified_split` | 2 | 2 | 0 |
-| **total** | **14** | **14** | **0** |
+| `unreproducible_accuracy` | 2 | 2 | 0 |
+| **total** | **21** | **21** | **0** |
 
 Strict precision 1.00, recall 1.00, F1 1.00. Honouring the declared
-`source_passage` gives the same 14/14 — it changes the passage link's *method*,
+`source_passage` gives the same 21/21 — it changes the passage link's *method*,
 not its target.
 
 ### How to read this
 
 **A consistency check, not a benchmark.** The locator conventions and the table
-row rule were written with the two committed table fixtures in view. A 14/14 means
+row rule were written with the two committed table fixtures in view. A 21/21 means
 *"the linker reproduces the hand-authored provenance exactly, and invents
 nothing"* — a real property, and the one M5 depends on. It does not mean retrieval
-is solved.
+is solved. The count moves whenever a fixture is added; the **zeros are the
+invariant**, and they are what the test asserts.
 
 The informative numbers are the passage overlap scores, since passages are the one
 channel where the answer is not forced by an identifier:
@@ -162,18 +181,25 @@ channel where the answer is not forced by an identifier:
 | Task | Best passage | Overlap | Runner-up | Overlap |
 | --- | --- | --- | --- | --- |
 | `synthetic_data_passage` | `p_data` | **0.211** | `p_hardware` | **0.000** |
+| `negated_training_data` | `p_corpora` | **0.571** | `p_eval_corpora` | **0.182** |
 | `accuracy_improvement` | `p_results` | 0.824 (also verbatim) | `p_setup` | 0.308 |
 | `underspecified_split` | `p_headline` | 1.000 (verbatim) | `p_detail` | 0.154 |
 
-`synthetic_data_passage` is the **only** fixture where keyword overlap is
-load-bearing: the claim *"The model is trained only on synthetic data"* appears
-nowhere verbatim, so the linker must separate the passage that paraphrases it
-(0.211, on the two shared tokens `synthetic` and `data`) from a distractor about
-compute hardware (0.000). It does. But 0.211 is a low absolute score, and the
-margin comes from the distractor being *completely* unrelated. A harder distractor
-sharing vocabulary without asserting the claim would not be separated by a
-bag-of-words baseline — which has no model of negation, morphology, or synonymy.
-That is why `evidence_presence` is a separate check (M5).
+`synthetic_data_passage` is the fixture where keyword overlap is most load-bearing:
+the claim *"The model is trained only on synthetic data"* appears nowhere verbatim, so
+the linker must separate the passage that paraphrases it (0.211, on the two shared
+tokens `synthetic` and `data`) from a distractor about compute hardware (0.000). It
+does. But 0.211 is a low absolute score, and the margin comes from the distractor being
+*completely* unrelated. A harder distractor sharing vocabulary without asserting the
+claim would not be separated by a bag-of-words baseline — which has no model of
+negation, morphology, or synonymy. That is why `evidence_presence` is a separate check
+(M5).
+
+`negated_training_data` (M8) shows both halves of that limitation at once. Its winning
+passage **negates** the claim, and scores 0.571 anyway — the linker retrieves it and
+says nothing about whether it supports anything, which is exactly the division of labour
+intended. Meanwhile its distractor's strongest word never counts: `corpus` does not
+match `corpora`, so morphology costs the runner-up most of its overlap.
 
 ### Worked example
 
@@ -209,18 +235,33 @@ python3 -m pytest tests/test_checks.py -q                # 118 tests (6 added by
 claimverifier run-checks --task <task.yaml>              # per-task check report
 ```
 
-18 checks over the seven committed fixtures: **16 pass, 1 fail, 1 inconclusive**,
-0 error, 0 skipped. No check assigns a support label — that inference is M7's.
+26 checks over the eleven committed fixtures: **20 pass, 3 fail, 1 inconclusive,
+1 error, 1 skipped** — every one of the five statuses now fires on a real task. No
+check assigns a support label; that inference is M7's.
 
 | Task | Checks | Outcome |
 | --- | --- | --- |
 | `accuracy_improvement` | 4 | `evidence_presence` pass · `table_value` pass ×2 · `comparison` pass |
 | `contradicted_f1` | 2 | `evidence_presence` **pass** · `table_value` **fail** |
 | `dataset_mean` | 3 | `evidence_presence` pass · `dataset_statistic` pass ×2 |
+| `dataset_mean_overstated` | 2 | `evidence_presence` **pass** · `dataset_statistic` **fail** |
+| `dataset_std` | 2 | `evidence_presence` pass · `dataset_statistic` pass (within tolerance, not exact) |
 | `gc_content` | 3 | `evidence_presence` pass · `code_execution` pass · `numeric_tolerance` pass |
+| `negated_training_data` | 1 | `evidence_presence` **fail** (polarity mismatch) |
 | `recompute_accuracy` | 3 | `evidence_presence` pass · `code_execution` pass · `numeric_tolerance` pass |
 | `synthetic_data_passage` | 1 | `evidence_presence` **inconclusive** |
 | `underspecified_split` | 2 | `evidence_presence` pass · `table_value` pass (ambiguous over 2 rows) |
+| `unreproducible_accuracy` | 3 | `evidence_presence` pass · `code_execution` **error** · `numeric_tolerance` **skipped** |
+
+`evidence_presence` fails on `negated_training_data` and is `inconclusive` on
+`synthetic_data_passage`, and the difference is the whole design: the first passage
+contains every token of its claim *and a negation*, which refutes it; the second is a
+paraphrase the rule cannot read, which refutes nothing.
+
+`unreproducible_accuracy` is where `error` and `skipped` come from, and they are not the
+same thing. The script exited 1, so `code_execution` **could not run the claim's
+computation** (`error`, `nonzero_exit`). `numeric_tolerance` is then `skipped`, not
+`fail`: no number disagreed with 0.95, because no number exists.
 
 ### The two rows that matter
 
@@ -289,20 +330,28 @@ python3 -m pytest tests/test_sandbox.py -q          # 61 tests
 claimverifier run-sandbox --task <task.yaml> --out results/runs/
 ```
 
-Both committed code fixtures execute under the recorded policy and reproduce the
-metric their claim states — offline, with the network guard installed, in a temp
-directory they cannot escape upward from.
+Three committed code fixtures execute under the recorded policy — offline, with the
+network guard installed, in a temp directory they cannot escape upward from. Two
+reproduce the metric their claim states. The third fails, on purpose.
 
 | Task | Script | stdout | Exit | Network attempts | Files written |
 | --- | --- | --- | --- | --- | --- |
 | `recompute_accuracy` | `compute_accuracy.py` | `accuracy=0.80` | 0 | none | none |
 | `gc_content` | `gc_content.py` | `gc_content=0.50` | 0 | none | none |
+| `unreproducible_accuracy` | `reproduce_from_predictions.py` | *(empty)* | **1** | none | none |
 
-The M5 check table is **unchanged** under the new runner — 18 checks over 7 fixtures,
-16 pass / 1 fail / 1 inconclusive — which is the result worth reporting: swapping a
-bare `subprocess.run` for a policy-enforcing sandbox moved no verdict. The
-`ScriptRunner` protocol M5 introduced held, and `code_execution` changed only its
-default runner.
+`reproduce_from_predictions.py` (M8) is a complete, working script whose input
+`predictions.csv` the paper never released — the most ordinary reproducibility failure
+there is. It prints one line to stderr and exits 1. The sandbox reports that as
+`exited 1`, `code_execution` records `error` / `nonzero_exit`, and the reproduction
+status is `failed_environment` — never `failed_numeric_mismatch`, because a script that
+will not run tells you nothing about the claim's number.
+
+The M5 check table was **unchanged** by the new runner when M6 landed — the same 18
+checks over the then-seven fixtures, 16 pass / 1 fail / 1 inconclusive — which is the
+result worth reporting: swapping a bare `subprocess.run` for a policy-enforcing sandbox
+moved no verdict. The `ScriptRunner` protocol M5 introduced held, and `code_execution`
+changed only its default runner.
 
 ### What the sandbox actually enforces
 
@@ -365,12 +414,12 @@ the same reason: `accuracy=0.80` is not a result until you know what produced it
 
 ### How to read this
 
-Two fixtures is not a reproducibility benchmark. Both scripts are stdlib-only, embed
-their own data, take no arguments, and were written by the same agent as the sandbox
-that runs them. What the table shows is that the controls hold and cost nothing: the
-scripts still reproduce with the environment scrubbed, the network denied, and the
-filesystem view emptied. The interesting failures are the guard tests above, not the
-two passes.
+Three fixtures is not a reproducibility benchmark. The scripts are stdlib-only, embed
+their own data (or, in the failing case, deliberately do not), take no arguments, and
+were written by the same agent as the sandbox that runs them. What the table shows is
+that the controls hold and cost nothing: the scripts still reproduce with the
+environment scrubbed, the network denied, and the filesystem view emptied. The
+interesting failures are the guard tests above, not the two passes.
 
 Wall-clock duration is measured (≈30 ms per script here) and deliberately kept out of
 the trace unless `--with-timing` is passed. It is the only value in an execution record
@@ -393,18 +442,29 @@ rule over the M5 checks, and the rule is recorded in the trace.
 | `accuracy_improvement` | `supported` | `not_applicable` | `none` | ✓ ✓ ✓ |
 | `contradicted_f1` | `contradicted` | `not_applicable` | `table_cell_mismatch` | ✓ ✓ ✓ |
 | `dataset_mean` | `supported` | `reproduced` | `none` | ✓ ✓ ✓ |
+| `dataset_mean_overstated` | `contradicted` | `failed_numeric_mismatch` | `statistic_mismatch` | ✓ ✓ ✓ |
+| `dataset_std` | `supported` | `approximately_reproduced` | `none` | ✓ ✓ ✓ |
 | `gc_content` | `supported` | `reproduced` | `none` | ✓ ✓ ✓ |
+| `negated_training_data` | `contradicted` | `not_applicable` | `passage_does_not_assert` | ✓ ✓ ✓ |
 | `recompute_accuracy` | `supported` | `reproduced` | `none` | ✓ ✓ ✓ |
 | `underspecified_split` | `underspecified` | `not_applicable` | `underspecified` | ✓ ✓ ✓ |
+| `unreproducible_accuracy` | `partially_supported` | `failed_environment` | `execution_error` | ✓ ✓ ✓ |
 | `synthetic_data_passage` | **`unverifiable_from_artifacts`** | `not_applicable` | **`evidence_undecidable`** | ✗ ✓ ✗ |
 
 | Agreement with gold | Score |
 | --- | --- |
-| `support_label` | **6/7** |
-| `reproduction_status` | **7/7** |
-| `failure_mode` | **6/7** |
-| **Wrong verdicts** | **0/7** |
-| Conservative misses | 1/7 (`synthetic_data_passage`) |
+| `support_label` | **10/11** |
+| `reproduction_status` | **11/11** |
+| `failure_mode` | **10/11** |
+| **Wrong verdicts** | **0/11** |
+| Conservative misses | 1/11 (`synthetic_data_passage`) |
+
+Five of the six support labels and six of the eight reproduction statuses now appear on a
+committed fixture. What remains unexercised end to end: `not_checked` (unreachable — the
+check runner always emits an `evidence_presence` check), `failed_missing_data` and
+`failed_missing_code` (a task naming an absent fixture file fails to *load*, so it cannot
+be expressed), and `not_attempted` (reachable only via `--no-execute`). All four are
+pinned by unit tests instead.
 
 ### The only number that matters here
 
@@ -487,25 +547,140 @@ as a fact about the paper.
 
 ### How to read this
 
-**A regression harness, not a benchmark.** Seven hand-authored synthetic fixtures, whose
-gold outcomes were written alongside the rules that score them. 6/7 does not mean
-scientific claim verification is 86% solved. What the table shows is that the rule table
+**A regression harness, not a benchmark.** Eleven hand-authored synthetic fixtures, whose
+gold outcomes were written alongside the rules that score them. 10/11 does not mean
+scientific claim verification is 91% solved. What the table shows is that the rule table
 is coherent (no fixture needs a special case), that it never asserts a verdict gold
 contradicts, and that the one claim its methods cannot read is *reported as unread*
 rather than guessed at.
 
-`reproduction_status` is 7/7 because the three reproducing fixtures reproduce **exactly**
-— `mean(value) = 40.8/12 = 3.4`, `accuracy=0.80`, `gc_content=0.50` — and the four table
-and passage claims correctly get `not_applicable`: reading a value out of a table cell is
-a lookup, not a reproduction.
+The four fixtures added in M8 are the closest thing here to a held-out test: they were
+authored **after** the M7 rule table was frozen, to reach verdicts the original seven
+never produced, and each landed on its hand-written gold outcome without a single change
+to the extractor, the linker, the checks, or the rules. That is weak evidence — the same
+agent wrote both, and the fixtures were designed with the rules in view — but it is
+stronger than the seven that came before, where the rules were tuned as the fixtures were
+written.
 
-Traces are byte-identical across runs, including for the two fixtures whose scripts
+`reproduction_status` is 11/11 across all six statuses it can reach. Three fixtures
+reproduce **exactly** (`mean(value) = 40.8/12 = 3.4`, `accuracy=0.80`,
+`gc_content=0.50`); `dataset_std` reproduces *approximately* (pstdev = 1.1298967…, inside
+the ±0.05 its one-decimal claim admits but not on it); `dataset_mean_overstated` fails
+numerically; `unreproducible_accuracy` fails environmentally; and the five table and
+passage claims correctly get `not_applicable` — reading a value out of a table cell is a
+lookup, not a reproduction.
+
+Traces are byte-identical across runs, including for the three fixtures whose scripts
 actually execute. See `docs/SCORING.md` for every rule and its known limits.
+
+## M8 — the offline smoke suite
+
+```bash
+python3 scripts/05_run_smoke_suite.py --out results/runs/     # 11 tasks, exit 0
+claimverifier run-suite --out results/runs/                   # same
+```
+
+Eleven tasks, run end to end on a CPU with no network and no paid API, in ~1.5 s. The
+suite writes a JSONL trace and a result JSON per task, plus `summary.csv`,
+`summary.json`, and `summary.txt`, into `results/runs/smoke_suite/`.
+
+| | |
+| --- | --- |
+| Tasks | 11 (`docs/PLAN.md` §11 asks for ≥ 8) |
+| Checks run | 26 — 20 pass, 3 fail, 1 inconclusive, 1 error, 1 skipped |
+| Scripts executed | 3, in the controlled sandbox |
+| Support labels | 5 `supported`, 3 `contradicted`, 1 `partially_supported`, 1 `underspecified`, 1 `unverifiable_from_artifacts` |
+| Gold agreement | support 10/11 · reproduction 11/11 · failure mode 10/11 |
+| **Wrong verdicts** | **0** |
+| Conservative misses | 1 (`synthetic_data_passage`), declared in the suite file |
+| **Gate** | **PASS** (exit 0) |
+
+### The suite is a gate, not a scoreboard
+
+`run-suite` exits non-zero when the pipeline **regresses**, and the definition of
+regression is deliberately asymmetric:
+
+- Any **wrong verdict** — a committal support label the task's gold outcome disagrees
+  with — fails the run. `tasks/smoke_suite.yaml` has no key that could declare one
+  acceptable, so a suite file can never bless one. (A test asserts the schema rejects
+  the field outright.)
+- A **conservative miss** — the pipeline predicted `unverifiable_from_artifacts` or
+  `not_checked` where gold commits — fails the run *only if the set of them changed*.
+  The suite file names the standing misses; a new one is a regression, and a fixed one
+  must be removed from the file rather than left to rot.
+
+That asymmetry is the point. A change that raises label accuracy by turning a claim the
+pipeline honestly declined to decide into one it decides *wrongly* has made the tool
+worse, and a single accuracy number would have called it an improvement. The gate is
+tested by injecting each failure in turn — a wrong verdict, a new miss, a stale declared
+miss — and asserting it fails; a gate that never fails proves nothing when it passes.
+
+A suite full of `contradicted` claims exits **0**. Finding a contradiction is the tool
+working. And `--no-execute` does not gate at all: skipping the fixture scripts leaves
+every code-reproduction claim undecided by its own artifacts, and the gold outcomes it
+would be judged against assume the scripts ran. Reporting those label shifts as "wrong
+verdicts" would blame the pipeline for the operator's flag.
+
+### What is byte-reproducible, and what is not
+
+Two runs of the suite into two different directories produce **byte-identical**
+`*.trace.jsonl` (all 11), `summary.csv`, and `summary.json`. Exactly two artifacts
+differ, in exactly one field each, and both are paths the caller chose:
+`<task_id>.result.json` records its own trace's absolute `trace_path` (a Milestone 7
+field), and `summary.txt` names the output directory. `summary.csv` refers to each trace
+by filename alone, so it stays portable. This is asserted by a test that hashes every
+artifact of two runs and diffs the two exceptions field by field.
+
+### Worked example
+
+```
+$ claimverifier run-suite --out results/runs/
+(abridged: the aggregate summary block is omitted)
+
+Suite           : smoke_suite (Offline smoke suite) v1
+Tasks           : 11
+Fixture scripts : executed in the controlled sandbox
+Artifacts       : results/runs/smoke_suite
+
+Per-task verdict (support / reproduction / failure_mode); gold shown where it differs:
+  [shy ] synthetic_data_passage   unverifiable_from_artifacts / not_applicable / evidence_undecidable
+         gold: supported / not_applicable / none
+  [ok  ] negated_training_data    contradicted / not_applicable / passage_does_not_assert
+  [ok  ] accuracy_improvement     supported / not_applicable / none
+  [ok  ] contradicted_f1          contradicted / not_applicable / table_cell_mismatch
+  [ok  ] underspecified_split     underspecified / not_applicable / underspecified
+  [ok  ] dataset_mean             supported / reproduced / none
+  [ok  ] dataset_std              supported / approximately_reproduced / none
+  [ok  ] dataset_mean_overstated  contradicted / failed_numeric_mismatch / statistic_mismatch
+  [ok  ] recompute_accuracy       supported / reproduced / none
+  [ok  ] gc_content               supported / reproduced / none
+  [ok  ] unreproducible_accuracy  partially_supported / failed_environment / execution_error
+
+Gate            : PASS
+  No wrong verdicts, and the claims the pipeline declined to decide are exactly
+  the ones the suite file declares. It asserted nothing its fixtures deny.
+```
+
+The tasks are ordered by evidence channel — text, table, dataset, code — so a failure
+reads as *"the dataset channel broke"* rather than *"task 7 broke"*. The single `shy`
+marker is the standing conservative miss, and the report prints the gold outcome it
+missed rather than quietly scoring itself.
+
+### How to read this
+
+**Still a regression harness.** Eleven tasks is not a benchmark, `summary.csv` is not a
+leaderboard, and the gate passing means *"this commit did not make the pipeline assert
+something its own fixtures deny"* — nothing more. The suite's value is that it makes a
+specific class of change impossible to land quietly: one that trades honesty for
+accuracy.
+
+Markdown and HTML **reports** are Milestone 9's. M8 emits machine-readable artifacts and
+one rendered text summary; nothing here formats a report.
 
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 452 passed
+python3 -m pytest -q     # 500 passed
 ruff check .             # all checks passed
 ```
 
@@ -519,12 +694,13 @@ ruff check .             # all checks passed
 | M5 | 114 | 285 |
 | M6 | 61 | 346 |
 | M7 | 106 | 452 |
+| M8 | 48 | 500 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
-used anywhere in the default path. M5's and M6's tests execute committed, stdlib-only
-fixture scripts (plus a few written by the tests themselves) as child processes —
-local, harmless, and offline. The socket tests either construct a socket or are
-refused before one exists; none of them connects to anything.
+used anywhere in the default path. M5's, M6's, and M8's tests execute committed,
+stdlib-only fixture scripts (plus a few written by the tests themselves) as child
+processes — local, harmless, and offline. The socket tests either construct a socket or
+are refused before one exists; none of them connects to anything.
 
 Two tests are load-bearing on the wall clock: the CPU-limit test burns ~1 CPU-second
 and the process-group test waits ~1 s for its timeout. Both assert that something was

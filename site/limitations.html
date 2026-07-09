@@ -44,10 +44,12 @@
   every content token of the claim present with matching polarity. It has no model of morphology or
   synonymy — <code>trained</code> does not match <code>training</code> — so a passage that supports
   the claim in different words is reported <code>inconclusive</code>, not <code>pass</code>. One of
-  the seven committed fixtures lands there, and that is the correct answer for this method rather
+  the eleven committed fixtures lands there, and that is the correct answer for this method rather
   than a bug: the alternative is to guess. Negation cues are a closed set of function words, so
   contractions (<code>doesn't</code>) are not detected, and verbatim containment is not
-  polarity-checked. See <a href="checks.html">Checks</a>.</p>
+  polarity-checked. Polarity is read from the passage's <em>best-matching sentence</em>, so a
+  negation that lives in a different sentence than the claim's tokens would be missed; no fixture
+  covers that case. See <a href="checks.html">Checks</a>.</p>
 
   <h2>Fixtures are small and synthetic</h2>
   <p>Fixtures are tiny, synthetic or open datasets chosen to exercise the checks. They are not
@@ -55,7 +57,17 @@
   leaderboard. The locator conventions and the table row rule were written with the committed table
   fixtures in view, so a perfect linking score is a consistency check, not evidence that retrieval
   is solved. The scoring rules were likewise written alongside the gold outcomes they are measured
-  against: 6/7 support labels is a <strong>regression harness</strong>, not a benchmark result.</p>
+  against: 10/11 support labels is a <strong>regression harness</strong>, not a benchmark result.
+  The four fixtures added in Milestone 8 were authored <em>after</em> the rule table was frozen and
+  needed no rule change, which is mildly better evidence — but the same agent wrote both, with the
+  rules in view, so it is not a held-out set in any meaningful sense.</p>
+
+  <h2>The smoke suite gates on regressions, not on correctness</h2>
+  <p><code>claimverifier run-suite</code> exiting 0 means <em>"this commit did not make the pipeline
+  assert something its own fixtures deny, and did not change the set of claims it declines to
+  decide."</em> It does not mean the verdicts are right, and it certainly does not mean the claims
+  are true. Passing <code>--no-execute</code> disables the gate entirely, because the gold outcomes
+  assume the fixture scripts ran. See <a href="results.html">Results</a>.</p>
 
   <h2><code>confidence</code> is not a probability</h2>
   <p><code>VerificationResult.confidence</code> is the share of a claim's checks that reached a

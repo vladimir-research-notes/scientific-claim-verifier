@@ -16,14 +16,16 @@ is a small but real reproducibility tool and benchmark platform. See
 [`docs/PLAN.md`](docs/PLAN.md) for the full plan and
 [`site/`](site/index.html) for the project website.
 
-> **Build status:** Milestones 0–6 complete. The typed schema, the task format and
-> its validator, rule-based claim extraction, the evidence linker, the deterministic
-> verification checks, and the reproducibility sandbox are in place: a claim can be
-> extracted, linked to the exact cell/column/script that bears on it, checked against
-> those artifacts, and its script executed under a recorded policy that emits a JSONL
-> trace. Scoring (support labels, failure modes) is Milestone 7. The remaining
-> subsystems are built milestone by milestone — see below. This README is upgraded
-> to portfolio quality in Milestone 12.
+> **Build status:** Milestones 0–8 complete. The typed schema, the task format and its
+> validator, rule-based claim extraction, the evidence linker, the deterministic
+> verification checks, the reproducibility sandbox, scoring, and the offline smoke suite
+> are in place: a claim can be extracted, linked to the exact cell/column/script that
+> bears on it, checked against those artifacts, its script executed under a recorded
+> policy, and the whole thing scored into a support label, a reproduction status, and a
+> failure mode — with a JSONL trace at every step. **Eleven tasks run end to end on a CPU
+> in ~1.5 s with zero wrong verdicts.** Markdown/HTML reports are Milestone 9. The
+> remaining subsystems are built milestone by milestone — see below. This README is
+> upgraded to portfolio quality in Milestone 12.
 
 ## Quickstart
 
@@ -36,6 +38,9 @@ python3 scripts/00_check_environment.py     # or: claimverifier check-env
 
 # CPU-only, offline tests (import the package straight from src/, no install needed)
 python3 -m pytest -q
+
+# The whole pipeline over every committed task: 11 claims, offline, ~1.5 s
+python3 scripts/05_run_smoke_suite.py --out results/runs/   # or: claimverifier run-suite
 ```
 
 ## Why not just summarize?
@@ -84,6 +89,7 @@ claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml
 claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
 claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.yaml --out results/runs/
 claimverifier verify         --task tasks/ml_claims/synthetic_data_passage.yaml --out results/runs/
+claimverifier run-suite      --suite tasks/smoke_suite.yaml --out results/runs/
 ```
 
 `link-evidence` reports the ranked passage candidates, the emitted evidence links
@@ -117,17 +123,25 @@ rule fired and which checks it read**, into the report and a JSONL trace. Repeat
 `contradicted` claim: finding a contradiction is the tool working. See
 [`docs/SCORING.md`](docs/SCORING.md).
 
-Over the seven committed fixtures it recovers 6/7 support labels and 7/7 reproduction
-statuses — but the number to watch is **0 wrong verdicts**. Its one miss
+Over the eleven committed fixtures it recovers 10/11 support labels and 11/11
+reproduction statuses — but the number to watch is **0 wrong verdicts**. Its one miss
 (`synthetic_data_passage`) is a *refusal to decide*: the passage supports the claim in
 a paraphrase, the lexical evidence check honestly returns `inconclusive`, and scoring
 reports `unverifiable_from_artifacts` rather than guessing. See
 [`docs/RESULTS.md`](docs/RESULTS.md).
 
-Target (each lands with its subsystem — see the milestones):
+`run-suite` runs every committed task end to end and writes a JSONL trace and a result
+JSON per task plus `summary.csv`, `summary.json`, and `summary.txt`. **It is a gate, not
+a scoreboard**, and the gate is asymmetric: any *wrong verdict* fails the run, while a
+*conservative miss* — declining to decide where the gold outcome commits — fails only if
+the set of them changed. The suite file names the standing misses and has no key for
+wrong verdicts, so it cannot bless one. A change that raises label accuracy by turning a
+claim the pipeline honestly declined to decide into one it decides *wrongly* has made the
+tool worse, and a single accuracy number would have called it an improvement.
+
+Target (lands with its subsystem — see the milestones):
 
 ```bash
-claimverifier run-suite     --suite tasks/smoke_suite.yaml --out results/runs/
 claimverifier report        --run results/runs/<run_id> --out results/reports/<run_id>.md
 ```
 

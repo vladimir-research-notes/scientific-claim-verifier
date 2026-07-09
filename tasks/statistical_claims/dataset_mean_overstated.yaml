@@ -1,0 +1,71 @@
+# Contradiction through the dataset channel (task family #6 in docs/PLAN.md §7).
+# `contradicted_f1` refutes a claim by reading a table cell; this one refutes it by
+# recomputing a statistic. Same verdict, different evidence channel and different
+# failure mode. Gold outcome: contradicted, failed numeric mismatch.
+task_id: dataset_mean_overstated
+family: dataset_statistic
+title: "Dataset mean is claimed to be 4.0 (recomputed: 3.4)"
+description: >
+  The paper states a mean of 4.0 for the measurements dataset; recomputing the mean
+  of the `value` column from the committed CSV gives 3.4. The passage asserts the
+  claim verbatim, so `evidence_presence` passes while `dataset_statistic` fails —
+  the same two-channel disagreement as `contradicted_f1`, reached by recomputation
+  rather than lookup. Because the failing check re-derives a number, this claim is
+  also the suite's only `failed_numeric_mismatch` reproduction.
+
+claim:
+  claim_id: c_dataset_mean_overstated
+  claim_text: "The measurements dataset has a mean value of 4.0."
+  claim_type: dataset_claim
+  source_document_id: paper_measurements_overstated
+  source_passage: p_overstated
+
+artifacts:
+  bundle_id: bundle_dataset_mean_overstated
+  task_id: dataset_mean_overstated
+  papers:
+    - artifact_id: paper_measurements_overstated
+      title: "Descriptive statistics, as reported"
+      passages:
+        - passage_id: p_overstated
+          section: "Data"
+          text: >
+            The measurements dataset has a mean value of 4.0.
+        - passage_id: p_collection
+          section: "Method"
+          text: "Each sample was recorded once, under identical conditions."
+  datasets:
+    - artifact_id: ds_measurements
+      path: data/fixtures/datasets/measurements.csv
+      description: "12 synthetic scalar measurements (mean 3.4)."
+      columns: [sample_id, value]
+      n_rows: 12
+      license: synthetic
+  expected_outputs:
+    mean: 3.4
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: contradicted
+  reproduction_status: failed_numeric_mismatch
+  failure_mode: statistic_mismatch
+  claim:
+    normalized_claim: "mean ~ 4"
+    metrics: [mean]
+    datasets: [measurements]
+    expected_value: 4.0
+    comparison_operator: "~"
+  evidence:
+    - kind: passage
+      target_id: p_overstated
+      quote: "The measurements dataset has a mean value of 4.0."
+    - kind: dataset
+      target_id: ds_measurements
+      locator: "column=value"
+
+notes: >
+  `expected_outputs.mean` records what the data actually holds (3.4), not what the
+  claim asserts (4.0). |3.4 − 4.0| = 0.6, far outside the ±0.05 the claim's one
+  decimal place admits, so the recomputation refutes rather than merely missing.

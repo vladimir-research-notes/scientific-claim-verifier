@@ -270,14 +270,18 @@ def test_reliable_fields_match_gold_on_every_fixture() -> None:
 def test_aggregate_extraction_scores() -> None:
     scores = [extraction.score_extraction(ext.claim, gold) for ext, gold in _extract_all().values()]
     agg = extraction.aggregate_scores(scores)
-    # Seven fields recovered on all seven fixtures; conditions on six (see below).
-    assert agg["expected_value"] == (7, 7)
-    assert agg["comparison_operator"] == (7, 7)
-    assert agg["metrics"] == (7, 7)
-    assert agg["datasets"] == (7, 7)
-    assert agg["units"] == (7, 7)
-    assert agg["entities"] == (7, 7)
-    assert agg["conditions"] == (6, 7)
+    n = len(scores)
+    assert n >= 11, "the committed fixture set should not shrink"
+    # Seven fields recovered on every committed fixture; conditions on all but one
+    # (the free-form semantic condition, pinned below).
+    assert agg["expected_value"] == (n, n)
+    assert agg["baseline_value"] == (n, n)
+    assert agg["comparison_operator"] == (n, n)
+    assert agg["metrics"] == (n, n)
+    assert agg["datasets"] == (n, n)
+    assert agg["units"] == (n, n)
+    assert agg["entities"] == (n, n)
+    assert agg["conditions"] == (n - 1, n)
 
 
 def test_documented_condition_miss_is_the_semantic_one() -> None:

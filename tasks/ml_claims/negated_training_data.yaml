@@ -1,0 +1,63 @@
+# Contradiction through the text channel (task family #6 in docs/PLAN.md §7).
+# A claim attributed to the paper that the paper's own sentence negates. No number
+# is involved: the contradiction is a polarity mismatch, and the only check that can
+# see it is `evidence_presence`. Gold outcome: contradicted.
+task_id: negated_training_data
+family: contradiction
+title: "The model is trained on real corpora (the paper says it is not)"
+description: >
+  A claim as a secondary source restates it — "the model is trained on real corpora"
+  — checked against the paper that supposedly said so. Every content token of the
+  claim occurs in the paper's sentence, so a bag-of-words overlap score cannot tell
+  the two apart; only the negation cue does. The `evidence_presence` check reads
+  polarity on the best-matching sentence and returns `polarity_mismatch`, which is
+  the one way a text-only claim can be refuted rather than merely left undecided.
+
+claim:
+  claim_id: c_negated_training_data
+  claim_text: "The model is trained on real corpora."
+  claim_type: descriptive_claim
+  source_document_id: paper_training_data
+  source_passage: p_corpora
+
+artifacts:
+  bundle_id: bundle_negated_training_data
+  task_id: negated_training_data
+  papers:
+    - artifact_id: paper_training_data
+      title: "Training data provenance"
+      passages:
+        - passage_id: p_corpora
+          section: "Training data"
+          text: >
+            The model is not trained on real corpora; all training data is generated
+            synthetically.
+        - passage_id: p_eval_corpora
+          section: "Evaluation"
+          text: >
+            Evaluation, unlike training, uses a real held-out corpus.
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: contradicted
+  reproduction_status: not_applicable
+  failure_mode: passage_does_not_assert
+  claim:
+    normalized_claim: "the model is trained on real corpora"
+    entities: [model]
+  evidence:
+    - kind: passage
+      target_id: p_corpora
+      quote: "The model is not trained on real corpora; all training data is generated synthetically."
+
+notes: >
+  The distractor passage is un-negated and shares the token `real`, so it scores
+  above the linking floor (blind overlap 0.182 against the true passage's 0.571).
+  It also shows the tokenizer's morphology limit: `corpus` does not match `corpora`,
+  so the distractor's strongest shared word never counts. Contrast
+  `synthetic_data_passage`, where the passage asserts the claim through a paraphrase
+  the same lexical rule cannot read, and the honest answer is `inconclusive` rather
+  than a refutation. Refuting a claim on polarity is safe; *asserting* one on token
+  overlap is not, which is why only one of these two directions is a `fail`.
