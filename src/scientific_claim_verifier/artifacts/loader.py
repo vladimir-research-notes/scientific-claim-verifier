@@ -94,6 +94,22 @@ class GoldClaim(_TaskModel):
     units: str | None = None
 
 
+class TaskTolerance(_TaskModel):
+    """An explicit numeric tolerance for a task's checks (Milestone 5).
+
+    Optional. When absent, a check derives its tolerance from the *reported
+    precision* of the claim's own number — a value written ``3.4`` admits any
+    computed value that rounds to ``3.4``. Set this only when a task needs a
+    tolerance the claim's wording does not imply, and say why in ``notes``.
+
+    The effective threshold applied to ``|computed − expected|`` is
+    ``max(abs_tol, rel_tol · |expected|)``.
+    """
+
+    abs_tol: float = Field(default=0.0, ge=0.0)
+    rel_tol: float = Field(default=0.0, ge=0.0)
+
+
 class TaskExpectation(_TaskModel):
     """The gold verification outcome, used to score the pipeline in later runs.
 
@@ -126,6 +142,7 @@ class TaskSpec(_TaskModel):
     claim: ClaimInput
     artifacts: S.ArtifactBundle
     expected: TaskExpectation
+    tolerance: TaskTolerance | None = None
     notes: str | None = None
 
 
@@ -215,19 +232,41 @@ def parse_task_data(text: str, *, is_json: bool) -> dict[str, Any]:
     return data
 
 
-def read_csv_shape(path: Path) -> tuple[list[str], int]:
-    """Return ``(header_columns, data_row_count)`` for a CSV fixture.
+def read_csv_rows(path: Path) -> tuple[list[str], list[list[str]]]:
+    """Return ``(header_columns, data_rows)`` for a CSV fixture, as raw strings.
 
-    Uses the stdlib ``csv`` module (no pandas dependency at this milestone). The
-    first row is treated as the header; remaining non-empty rows are data.
+    Uses the stdlib ``csv`` module (no pandas dependency). The first row is the
+    header; remaining non-empty rows are data. Headers are stripped of surrounding
+    whitespace; cells are returned verbatim so a check can report exactly what the
+    file contained.
     """
     with path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.reader(handle)
-        rows = [row for row in reader if row]
+        rows = [row for row in csv.reader(handle) if row]
     if not rows:
-        return [], 0
+        return [], []
     header, *data = rows
-    return [col.strip() for col in header], len(data)
+    return [col.strip() for col in header], data
+
+
+def read_csv_shape(path: Path) -> tuple[list[str], int]:
+    """Return ``(header_columns, data_row_count)`` for a CSV fixture."""
+    columns, data = read_csv_rows(path)
+    return columns, len(data)
+
+
+def read_csv_column(path: Path, column: str) -> list[str]:
+    """Return the raw cells of ``column``, top to bottom.
+
+    Raises :class:`TaskLoadError` if the column is absent from the header. A row
+    too short to reach the column yields ``""`` rather than dropping silently, so
+    a ragged CSV surfaces as a conversion error in the caller instead of a
+    quietly shortened sample.
+    """
+    columns, data = read_csv_rows(path)
+    if column not in columns:
+        raise TaskLoadError(f"column {column!r} not in CSV header {columns}")
+    index = columns.index(column)
+    return [row[index] if index < len(row) else "" for row in data]
 
 
 def check_csv_shape(
@@ -313,13 +352,16 @@ __all__ = [
     "ClaimInput",
     "GoldClaim",
     "TaskExpectation",
+    "TaskTolerance",
     "TaskSpec",
     "LoadedTask",
     "find_repo_root",
     "resolve_fixture_path",
     "is_under_fixture_root",
     "parse_task_data",
+    "read_csv_rows",
     "read_csv_shape",
+    "read_csv_column",
     "check_csv_shape",
     "load_task",
     "discover_task_files",

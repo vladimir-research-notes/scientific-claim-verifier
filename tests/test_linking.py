@@ -585,7 +585,7 @@ def test_aggregate_linking_scores_sums_counts() -> None:
 
 
 def test_blind_linking_reproduces_every_gold_link() -> None:
-    """The headline number: without the declared source_passage, 12/12 gold links."""
+    """The headline number: without the declared source_passage, 14/14 gold links."""
     scores = []
     for task in load_all_tasks():
         result = link_task(task, blind=True)
@@ -596,7 +596,7 @@ def test_blind_linking_reproduces_every_gold_link() -> None:
         )
         scores.append(score)
     total = linking.aggregate_linking_scores(scores)
-    assert (total.strict.tp, total.strict.fp, total.strict.fn) == (12, 0, 0)
+    assert (total.strict.tp, total.strict.fp, total.strict.fn) == (14, 0, 0)
 
 
 def test_declared_source_linking_also_reproduces_every_gold_link() -> None:
@@ -633,6 +633,19 @@ def test_underspecified_split_links_the_column_not_a_cell() -> None:
     task = loader.load_task(TASKS_DIR / "ml_claims" / "underspecified_split.yaml")
     table_links = linked(link_task(task, blind=True).links, EK.TABLE)
     assert [(x.target_id, x.locator) for x in table_links] == [("t_splits", "col=accuracy")]
+    assert "match=table_column" in (table_links[0].notes or "")
+
+
+def test_contradicted_claim_links_the_column_so_the_contradiction_stays_checkable() -> None:
+    """The claim names row B, but 91.0 matches no cell — so the column is linked, not a cell.
+
+    Same locator shape as `underspecified_split`, opposite reason: there the value is
+    present and the row is not named; here the row is named and the value is absent.
+    Both need a column link, or the M5 table check would have nowhere to look.
+    """
+    task = loader.load_task(TASKS_DIR / "table_claims" / "contradicted_f1.yaml")
+    table_links = linked(link_task(task, blind=True).links, EK.TABLE)
+    assert [(x.target_id, x.locator) for x in table_links] == [("t_mnli", "col=f1")]
     assert "match=table_column" in (table_links[0].notes or "")
 
 

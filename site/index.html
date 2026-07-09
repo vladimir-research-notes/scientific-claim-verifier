@@ -31,7 +31,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 4 complete — evidence linker</span> &nbsp; <span class="status planned">Milestone 5 next: verification checks</span></p>
+  <p><span class="status done">status: Milestone 5 complete — verification checks</span> &nbsp; <span class="status planned">Milestone 6 next: reproducibility sandbox</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -71,7 +71,7 @@
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). Five commands are live now; the remaining verification commands come
+  <code>pyyaml</code>). Six commands are live now; the remaining verification commands come
   online with their subsystems.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
@@ -79,6 +79,7 @@ claimverifier check-env          # offline interpreter + library self-check
 claimverifier validate-fixtures  # validate task fixtures under tasks/
 claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml
 claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml
+claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
   <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
   the task's gold target — the audit trail is the product, not a side effect:</p>
@@ -106,6 +107,26 @@ Evidence links:
   - table: t_results [row=baseline,col=accuracy]  (match=table_cell; value=72)
 
 Gold comparison : strict 3/3 gold links recovered, 0 spurious (P=1.00 R=1.00)</code></pre>
+  <p>Then the checks read each located artifact and compute a fact about it. Here is the fixture
+  that exists to show why the channels must stay separate — a paper whose abstract asserts a claim
+  its own results table refutes:</p>
+  <pre><code>$ claimverifier run-checks --task tasks/table_claims/contradicted_f1.yaml
+
+Claim : Method B reaches an F1 score of 91.0 on MNLI.
+
+Supporting text (retrieved evidence; whether it *asserts* the claim is checked below):
+  "Method B reaches an F1 score of 91.0 on MNLI."
+
+Computed checks (each reads an artifact; none of them decides the verdict):
+  [pass] evidence_presence  p_claim         the passage states the claim verbatim
+  [fail] table_value        t_mnli[col=f1]  claimed 91 is absent from column 'f1'
+                                            (nearest 86 at row B; |difference| = 5 &gt; tolerance 0.05)
+
+Inference : NOT produced by this stage.</code></pre>
+  <p>Both checks are correct. A system that collapsed them into a single verdict would destroy the
+  only interesting fact about this claim. The <code>0.05</code> tolerance was not chosen either —
+  the claim wrote <code>91.0</code>, to one decimal place, so anything rounding to 91.0 would have
+  matched. See <a href="checks.html">Checks</a>.</p>
   <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
   the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>
 

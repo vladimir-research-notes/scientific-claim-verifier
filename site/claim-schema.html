@@ -112,11 +112,28 @@
   job (Milestone 4); the extractor only records references the claim text names explicitly, and
   leaves <code>evidence_links</code> empty.</p>
 
+  <h2>Check outcomes (Milestone 5)</h2>
+  <p>A <code>VerificationCheck</code> carries a <code>CheckStatus</code>. There are five, because
+  the ways a check can fail to say "yes" mean different things to scoring:</p>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="pill ok">pass</span></td><td>The check ran; the artifacts agree with the claim.</td></tr>
+    <tr><td><span class="pill bad">fail</span></td><td>The check ran; the artifacts <strong>disagree</strong>.</td></tr>
+    <tr><td><span class="pill warn">inconclusive</span></td><td>The check ran; its <strong>method cannot decide</strong>.</td></tr>
+    <tr><td><span class="pill">error</span></td><td>The check itself could not run.</td></tr>
+    <tr><td><span class="pill">skipped</span></td><td>The check did not apply.</td></tr>
+  </table>
+  <p><code>inconclusive</code> was added in Milestone 5 (schema version <code>1.1</code>, additive:
+  every <code>1.0</code> document stays valid). Without it, a transparent lexical check faced with a
+  paraphrase would have to report <code>fail</code>, and scoring would manufacture a contradiction
+  out of the checker's own ignorance. See <a href="checks.html">Checks</a>.</p>
+
   <h2>Design intent</h2>
   <ul>
     <li>Every field a check needs is explicit — no re-parsing the claim text at check time.</li>
     <li>Extraction may be heuristic; the schema is where heuristics are made auditable.</li>
     <li>An <code>unsupported_or_contextual_claim</code> is a first-class outcome, not an error.</li>
+    <li>"I cannot tell" is a first-class outcome too — it is never rounded to "no".</li>
   </ul>
 </main>
 <footer class="site">scientific-claim-verifier — claim schema.</footer>

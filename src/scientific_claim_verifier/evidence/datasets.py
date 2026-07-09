@@ -28,7 +28,7 @@ from dataclasses import dataclass
 # so a mention resolves to the same artifact in both places.
 from ..claims.extraction import resolve_dataset_reference
 from ..schemas import ArtifactBundle, DatasetArtifact, ScientificClaim
-from . import MatchMethod
+from . import MatchMethod, locators
 from .tables import normalize_header
 
 # Columns that identify a row rather than measure it.
@@ -88,7 +88,7 @@ def link_datasets(
         matches.append(
             DatasetMatch(
                 artifact_id=artifact_id,
-                locator=f"column={column}" if column else None,
+                locator=locators.dataset_column(column) if column else None,
                 method=MatchMethod.DATASET_NAME,
                 mention=name,
             )

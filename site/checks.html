@@ -29,7 +29,7 @@
   <p class="lede">Checks are deterministic and transparent. Each takes a claim plus its linked
   artifacts and emits a <code>VerificationCheck</code> record with inputs, computed value,
   expected value, tolerance, pass/fail, and notes.</p>
-  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status done">evidence linking live in Milestone 4</span> &nbsp; <span class="status planned">check logic lands in Milestone 5; sandbox in Milestone 6</span></p>
+  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status done">evidence linking live in Milestone 4</span> &nbsp; <span class="status done">checks live in Milestone 5 — 18 checks over 7 fixtures</span> &nbsp; <span class="status planned">sandbox hardening in Milestone 6</span></p>
 
   <h2>Before a check runs: evidence linking</h2>
   <p>A check cannot run until something has said <em>where to look</em>. That is the evidence
@@ -63,38 +63,101 @@
 
   <h2>The checks</h2>
   <table>
-    <tr><th>Check</th><th>Module</th><th>What it does</th></tr>
-    <tr><td>Table value</td><td><code>checks/table_recompute.py</code></td><td>Looks up / recomputes a cell and compares to the claimed value.</td></tr>
-    <tr><td>Dataset statistic</td><td><code>checks/statistical.py</code></td><td>Recomputes count / mean / std / correlation from a CSV.</td></tr>
-    <tr><td>Numeric tolerance</td><td><code>checks/statistical.py</code></td><td>Compares computed vs expected within an absolute/relative tolerance.</td></tr>
-    <tr><td>Comparison</td><td><code>checks/consistency.py</code></td><td>Checks directional claims ("improves from X to Y").</td></tr>
-    <tr><td>Evidence presence</td><td><code>checks/consistency.py</code></td><td>Confirms a linked passage actually asserts the claim.</td></tr>
-    <tr><td>Figure recompute</td><td><code>checks/figure_recompute.py</code></td><td>Regenerates a summary table/figure from data and compares key values.</td></tr>
-    <tr><td>Code execution</td><td><code>checks/code_execution.py</code></td><td>Runs a tiny script in the sandbox and compares output to expected.</td></tr>
+    <tr><th>Check</th><th>Module</th><th>What it does</th><th>Status</th></tr>
+    <tr><td>Evidence presence</td><td><code>checks/consistency.py</code></td><td>Asks whether the linked passage actually <em>asserts</em> the claim.</td><td><span class="pill ok">live</span></td></tr>
+    <tr><td>Table value</td><td><code>checks/table_recompute.py</code></td><td>Reads the located cell (or column) back and compares to the claimed value.</td><td><span class="pill ok">live</span></td></tr>
+    <tr><td>Comparison</td><td><code>checks/consistency.py</code></td><td>Checks directional claims ("improves from X to Y") against the observed values.</td><td><span class="pill ok">live</span></td></tr>
+    <tr><td>Dataset statistic</td><td><code>checks/statistical.py</code></td><td>Recomputes count / sum / mean / median / std / min / max from a CSV column.</td><td><span class="pill ok">live</span></td></tr>
+    <tr><td>Code execution</td><td><code>checks/code_execution.py</code></td><td>Runs a tiny fixture script and checks it printed the declared observable.</td><td><span class="pill ok">live</span></td></tr>
+    <tr><td>Numeric tolerance</td><td><code>checks/statistical.py</code></td><td>Compares the number the artifacts produced against the number the claim asserts.</td><td><span class="pill ok">live</span></td></tr>
+    <tr><td>Figure recompute</td><td>—</td><td>Regenerate a summary table/figure from data and compare key values.</td><td><span class="pill">not implemented</span></td></tr>
   </table>
+  <p><code>correlation</code> and <code>figure_recompute</code> are <strong>not implemented</strong>: no
+  committed fixture exercises them, and correlation needs a two-column locator the grammar does not
+  yet express. They are named as untouched work, not left as a silent gap. See
+  <code>docs/CHECKS.md</code>.</p>
 
-  <h2>Tolerance handling</h2>
-  <p>Numeric comparisons never rely on exact float equality. Each numeric claim carries an
-  expected value and an operator; the check applies an absolute or relative tolerance
-  (defaulted per metric, overridable per task) and records both the raw difference and the
-  tolerance used, so a near-miss reads as <em>approximately reproduced</em> rather than a hard
-  fail. See <a href="reproducibility.html">Reproducibility</a>.</p>
+  <h2>Five outcomes, not two</h2>
+  <p>A check that runs and finds the artifacts disagree says <code>fail</code>. A check that runs and
+  whose <em>method cannot decide</em> says <code>inconclusive</code> — a distinct status, added to the
+  schema in Milestone 5 (version <code>1.1</code>, additive).</p>
+  <table>
+    <tr><th>Status</th><th>Meaning</th><th>Scoring consequence (M7)</th></tr>
+    <tr><td><code>pass</code></td><td>The artifacts agree with the claim.</td><td>supports <code>supported</code></td></tr>
+    <tr><td><code>fail</code></td><td>The artifacts <strong>disagree</strong>.</td><td>supports <code>contradicted</code></td></tr>
+    <tr><td><code>inconclusive</code></td><td>The method <strong>cannot decide</strong>.</td><td><code>unverifiable_from_artifacts</code></td></tr>
+    <tr><td><code>error</code></td><td>The check could not run.</td><td><code>failed_*</code></td></tr>
+    <tr><td><code>skipped</code></td><td>The check did not apply.</td><td><code>not_checked</code></td></tr>
+  </table>
+  <div class="callout">Without <code>inconclusive</code>, a transparent lexical check faced with a
+  paraphrase would have to report <code>fail</code>, and scoring would manufacture a
+  <em>contradiction</em> out of the checker's own ignorance. The distinction between "the artifacts
+  say you are wrong" and "I cannot tell" is the difference between an auditable tool and a merely
+  confident one.</div>
+
+  <h2>Evidence presence: what a lexical check can and cannot confirm</h2>
+  <p>The linker retrieves the passage; this check asks whether the passage <em>says</em> the claim.
+  It reports one of five levels, and only two of them pass.</p>
+  <table>
+    <tr><th>Level</th><th>Rule</th><th>Status</th></tr>
+    <tr><td><code>verbatim</code></td><td>The claim's canonicalized text occurs in the passage.</td><td><code>pass</code></td></tr>
+    <tr><td><code>token_subsumed</code></td><td>Every content token of the claim occurs, polarity matching.</td><td><code>pass</code></td></tr>
+    <tr><td><code>polarity_mismatch</code></td><td>Tokens all present, but the quoting sentence negates the claim.</td><td><code>fail</code></td></tr>
+    <tr><td><code>partial_overlap</code></td><td>Some claim tokens are missing.</td><td><strong><code>inconclusive</code></strong></td></tr>
+    <tr><td><code>absent</code></td><td>No claim token occurs at all.</td><td><code>fail</code></td></tr>
+  </table>
+  <p>On the committed fixtures exactly one claim lands on <code>partial_overlap</code>, and it is
+  exactly the one whose supporting passage is a genuine paraphrase: <em>"the model is trained
+  <strong>only</strong> on synthetic data"</em> is supported by <em>"no real corpora were used at any
+  stage of <strong>training</strong>"</em>, and a bag-of-words rule cannot bridge <code>trained</code> to
+  <code>training</code>. It says so instead of guessing. See <a href="results.html">Results</a>.</p>
+
+  <h2>Tolerance is read off the claim, not chosen</h2>
+  <p>Numeric comparisons never rely on exact float equality. The default tolerance is the claim's
+  own <strong>reported precision</strong>: half of the last decimal place of the number
+  <em>as it was written</em>. So the tolerance is a property of how the claim was stated, not a
+  constant tuned until the fixtures went green.</p>
+  <table>
+    <tr><th>Claim text</th><th>Tolerance</th><th>Reasoning</th></tr>
+    <tr><td><code>a mean value of 3.4</code></td><td>±0.05</td><td>anything that rounds to 3.4</td></tr>
+    <tr><td><code>an accuracy of 0.80</code></td><td>±0.005</td><td>two decimals were reported</td></tr>
+    <tr><td><code>reaches 90% accuracy</code></td><td>±0.5</td><td>reported to the nearest integer</td></tr>
+    <tr><td><code>12 samples</code></td><td>±0</td><td>a count is exact</td></tr>
+  </table>
+  <p>Overrides, in precedence order: <code>--abs-tol</code>/<code>--rel-tol</code> on the command
+  line, then a <code>tolerance:</code> block in the task file, then the reported precision, then
+  float noise. Every check records the threshold it actually applied alongside the signed
+  difference. See <a href="reproducibility.html">Reproducibility</a>.</p>
 
   <h2>Code execution</h2>
-  <p>The code-execution check runs <strong>tiny, trusted fixture scripts</strong> through the
-  sandbox layer: a temp working directory, a wall-clock timeout, captured
-  stdout/stderr/exit-code, and a no-network policy. This is controlled fixture execution for
-  reproducibility — <strong>not</strong> an untrusted-code or exploit sandbox, and it makes no
-  production-grade isolation claim. See <a href="limitations.html">Limitations</a>.</p>
+  <p>The code-execution check runs <strong>tiny, trusted fixture scripts</strong> committed to this
+  repository. The Milestone 5 executor is a bare child process with a wall-clock timeout, closed
+  stdin, and captured stdout/stderr/exit-code. It does <strong>not</strong> copy the script to a temp
+  directory, scrub the environment, restrict the filesystem, or block the network — it is
+  <strong>not a security boundary of any kind</strong>. Milestone 6 adds the temp working directory,
+  the no-network policy, and the trace record behind the same <code>ScriptRunner</code> protocol, so
+  no check changes when it lands. See <a href="limitations.html">Limitations</a>.</p>
+  <p>Execution failure is not numeric disagreement: a timeout or a non-zero exit is
+  <code>error</code>, never <code>fail</code>, because a script that will not run tells you nothing
+  about the claim's number. Whether the number it printed <em>matches</em> is a separate
+  <code>numeric_tolerance</code> check — which is why <code>failed_environment</code> and
+  <code>failed_numeric_mismatch</code> can be told apart in a report.</p>
 
   <div class="callout">A check never decides the final label alone. Checks produce evidence;
   <a href="reproducibility.html">scoring</a> maps the set of checks onto a support label,
-  a reproducibility status, and (on failure) a failure mode.</div>
+  a reproducibility status, and (on failure) a failure mode. The
+  <code>contradicted_f1</code> fixture is the proof: the paper's abstract asserts the claim verbatim
+  (<code>evidence_presence</code> passes) while its own results table refutes it
+  (<code>table_value</code> fails). Both are true, and a single verdict would destroy that fact.</div>
 
   <h2>Determinism</h2>
-  <p>Checks avoid wall-clock and unseeded randomness in anything that affects their output.
-  Ordering is stable, and every computed value is written to the JSONL trace so a report can
-  be regenerated and audited without re-running the checks.</p>
+  <p>Every check is a pure function of its inputs apart from code execution, which starts a child
+  process. No wall clock, no RNG, and no absolute filesystem paths reach a check's recorded output:
+  the command is recorded as <code>("python", "gc_content.py")</code>, never the machine's
+  interpreter path, and no duration is recorded (timing belongs in the Milestone 6 trace). Floats
+  are rounded to 12 decimal places, so <code>40.8 / 12</code> is written <code>3.4</code> rather than
+  <code>3.4000000000000004</code> — far below any tolerance in play, so rounding can never flip a
+  verdict. Checks are emitted in a fixed type order with ids numbered per type.</p>
 </main>
 <footer class="site">scientific-claim-verifier — verification checks.</footer>
 </body>

@@ -270,14 +270,14 @@ def test_reliable_fields_match_gold_on_every_fixture() -> None:
 def test_aggregate_extraction_scores() -> None:
     scores = [extraction.score_extraction(ext.claim, gold) for ext, gold in _extract_all().values()]
     agg = extraction.aggregate_scores(scores)
-    # Seven fields recovered on all six fixtures; conditions on five (see below).
-    assert agg["expected_value"] == (6, 6)
-    assert agg["comparison_operator"] == (6, 6)
-    assert agg["metrics"] == (6, 6)
-    assert agg["datasets"] == (6, 6)
-    assert agg["units"] == (6, 6)
-    assert agg["entities"] == (6, 6)
-    assert agg["conditions"] == (5, 6)
+    # Seven fields recovered on all seven fixtures; conditions on six (see below).
+    assert agg["expected_value"] == (7, 7)
+    assert agg["comparison_operator"] == (7, 7)
+    assert agg["metrics"] == (7, 7)
+    assert agg["datasets"] == (7, 7)
+    assert agg["units"] == (7, 7)
+    assert agg["entities"] == (7, 7)
+    assert agg["conditions"] == (6, 7)
 
 
 def test_documented_condition_miss_is_the_semantic_one() -> None:

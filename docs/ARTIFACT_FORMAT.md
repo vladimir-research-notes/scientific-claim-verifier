@@ -35,9 +35,25 @@ milestone (M3).
 | `claim` | `ClaimInput` | The claim as authored (input). |
 | `artifacts` | `ArtifactBundle` | The evidence bundle (Milestone 1 schema). |
 | `expected` | `TaskExpectation` | The gold outcome + gold extraction (for scoring). |
+| `tolerance` | `TaskTolerance \| None` | Optional numeric tolerance override for the checks (M5). |
 | `notes` | `str \| None` | Author notes. |
 
 All models are strict (`extra="forbid"`): an unknown key is a hard error.
+
+### `TaskTolerance` (optional, Milestone 5)
+
+```yaml
+tolerance:
+  abs_tol: 0.5     # default 0.0
+  rel_tol: 0.0     # default 0.0
+```
+
+Omit it unless a task genuinely needs a tolerance its claim's wording does not
+imply. By default a check derives its tolerance from the claim's own **reported
+precision** — a value written `3.4` admits anything that rounds to `3.4` — so no
+committed fixture sets this block. The threshold applied to
+`|computed − expected|` is `max(abs_tol, rel_tol · |expected|)`. See
+`docs/CHECKS.md`.
 
 ### `claim` — `ClaimInput`
 
@@ -112,28 +128,36 @@ Fixture path safety: paths must be relative and resolve inside the repository.
 Absolute paths and `..` escapes are rejected, so a task can only reference small
 committed fixtures.
 
-## Committed fixtures (Milestone 2)
+## Committed fixtures
 
-Six tasks across the families in `docs/PLAN.md` §7, all synthetic and small:
+Seven tasks across the families in `docs/PLAN.md` §7, all synthetic and small:
 
 | Task | Family | Claim type | Gold label |
 | --- | --- | --- | --- |
 | `table_claims/accuracy_improvement` | numeric_table | `comparison_claim` | `supported` |
+| `table_claims/contradicted_f1` | contradiction | `numeric_claim` | `contradicted` |
 | `statistical_claims/dataset_mean` | dataset_statistic | `dataset_claim` | `supported` (reproduced) |
 | `ml_claims/synthetic_data_passage` | evidence_passage | `descriptive_claim` | `supported` |
 | `ml_claims/underspecified_split` | underspecified | `numeric_claim` | `underspecified` |
 | `code_reproduction/recompute_accuracy` | code_reproduction | `code_reproduction_claim` | `supported` (reproduced) |
 | `bioinformatics_claims/gc_content` | bioinformatics | `code_reproduction_claim` | `supported` (reproduced) |
 
+Six were authored in Milestone 2. `contradicted_f1` was added in Milestone 5 so the
+`fail` path of the table check has a real task rather than only a synthetic one: its
+abstract asserts the claim verbatim while its table refutes it, which is the
+clearest demonstration that supporting text and computed check are separate
+channels.
+
 The dataset fixture (`data/fixtures/datasets/measurements.csv`, 12 rows, mean
 3.4) and the two code fixtures (`compute_accuracy.py` → `accuracy=0.80`,
 `gc_content.py` → `gc_content=0.50`) are trusted, stdlib-only, offline, and
-deterministic. Execution of the code fixtures is deferred to the reproducibility
-sandbox milestone; Milestone 2 only references and hashes them.
+deterministic. Milestone 2 only referenced and hashed them; Milestone 5's
+`code_execution` check runs them (see `docs/CHECKS.md` on what that executor is and
+is not).
 
 ## Status
 
 **Milestone 2 complete.** The loader, hasher, and validator are covered by
 `tests/test_fixtures.py` and `tests/test_hashing.py`. Extraction (M3), evidence
-linking (M4), checks (M5), the sandbox (M6), and scoring (M7) consume these
-loaded tasks in their own milestones.
+linking (M4), and checks (M5) consume these loaded tasks; the sandbox (M6) and
+scoring (M7) follow in their own milestones.

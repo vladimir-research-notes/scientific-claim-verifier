@@ -174,30 +174,30 @@ phrasing, and scoring it as if it could would be overclaiming.
 compare as **sets** — order is not semantically meaningful. Float fields compare
 with `math.isclose`. `normalized_claim` is excluded, per above.
 
-### Results on the six committed fixtures
+### Results on the seven committed fixtures
 
 Reproduce with `python3 -m pytest tests/test_extraction.py -q`, or per task with
 `claimverifier extract-claims --task <task.yaml>`.
 
 | Field | Recovered | Channel |
 | --- | --- | --- |
-| `expected_value` | 6/6 | reliable |
-| `baseline_value` | 6/6 | reliable |
-| `comparison_operator` | 6/6 | reliable |
-| `units` | 6/6 | reliable |
-| `metrics` | 6/6 | reliable |
-| `datasets` | 6/6 | best effort |
-| `entities` | 6/6 | best effort |
-| `conditions` | **5/6** | best effort |
+| `expected_value` | 7/7 | reliable |
+| `baseline_value` | 7/7 | reliable |
+| `comparison_operator` | 7/7 | reliable |
+| `units` | 7/7 | reliable |
+| `metrics` | 7/7 | reliable |
+| `datasets` | 7/7 | best effort |
+| `entities` | 7/7 | best effort |
+| `conditions` | **6/7** | best effort |
 
 The single miss is `synthetic_data_passage`, whose gold condition
 `"synthetic data only"` is a semantic paraphrase of *"trained only on synthetic
 data"*. The extractor returns `[]` rather than guessing.
 
-**Read these numbers honestly.** Six hand-authored fixtures are a sanity check,
+**Read these numbers honestly.** Seven hand-authored fixtures are a sanity check,
 not a benchmark. The lexicons (datasets, entities, metrics) were chosen to cover
-these fixtures; a `6/6` on `datasets` means "the two dataset mentions present were
-found", not "dataset extraction is solved". The `5/6` on `conditions` is the more
+these fixtures; a `7/7` on `datasets` means "every dataset mention present was
+found", not "dataset extraction is solved". The `6/7` on `conditions` is the more
 informative number.
 
 ## CLI

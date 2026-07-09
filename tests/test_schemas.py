@@ -20,9 +20,28 @@ from scientific_claim_verifier import schemas as S
 
 
 def test_schema_version_is_real() -> None:
-    # The Milestone 0 stub used "0-stub"; M1 must ship a real version.
-    assert S.SCHEMA_VERSION == "1.0"
+    # The Milestone 0 stub used "0-stub"; M1 shipped "1.0"; M5 bumped to "1.1" when
+    # it added CheckStatus.INCONCLUSIVE (an additive change — 1.0 docs stay valid).
+    assert S.SCHEMA_VERSION == "1.1"
     assert "stub" not in S.SCHEMA_VERSION
+
+
+def test_check_status_distinguishes_cannot_decide_from_disagrees() -> None:
+    # `inconclusive` exists so a transparent check that genuinely cannot tell never
+    # has to masquerade as `fail`. See checks/consistency.py.
+    assert {s.value for s in S.CheckStatus} == {
+        "pass",
+        "fail",
+        "inconclusive",
+        "error",
+        "skipped",
+    }
+    assert not S.VerificationCheck(
+        check_id="c.evidence_presence.1",
+        check_type=S.CheckType.EVIDENCE_PRESENCE,
+        claim_id="c",
+        status=S.CheckStatus.INCONCLUSIVE,
+    ).ok
 
 
 def test_claim_type_values() -> None:

@@ -199,14 +199,14 @@ is unit-tested against synthetic figures. Figure *recomputation* lands with M5.
 - **loose** keys on `(kind, target_id)` — "did it find the right artifact at all?"
 
 Keys compare as **sets**, so two gold links into the same table collapse to one
-loose key (hence 12 strict / 11 loose links across the six fixtures).
+loose key (hence 14 strict / 13 loose links across the seven fixtures).
 
 `quote` is deliberately **not** compared. Gold quotes are hand-trimmed spans; the
 linker quotes the best-matching whole sentence. Scoring a rule-based system on
 reproducing hand-authored spans would be overclaiming — the same reason M3 does
 not score `normalized_claim`.
 
-### Results on the six committed fixtures
+### Results on the seven committed fixtures
 
 Reproduce with `python3 -m pytest tests/test_linking.py -q`, or per task with
 `claimverifier link-evidence --task <task.yaml> --no-declared-source`.
@@ -216,22 +216,23 @@ Blind (`--no-declared-source`), strict keys:
 | Task | Gold links | Recovered | Spurious |
 | --- | --- | --- | --- |
 | `accuracy_improvement` | 3 | 3 | 0 |
+| `contradicted_f1` | 2 | 2 | 0 |
 | `dataset_mean` | 2 | 2 | 0 |
 | `gc_content` | 2 | 2 | 0 |
 | `recompute_accuracy` | 2 | 2 | 0 |
 | `synthetic_data_passage` | 1 | 1 | 0 |
 | `underspecified_split` | 2 | 2 | 0 |
-| **total** | **12** | **12** | **0** |
+| **total** | **14** | **14** | **0** |
 
 Strict precision 1.00, recall 1.00. Honouring the declared `source_passage` gives
-the same 12/12 (it changes the passage link's *method*, not its target).
+the same 14/14 (it changes the passage link's *method*, not its target).
 
 ### How to read this
 
-**This is a consistency check, not a benchmark.** Six hand-authored fixtures, and
+**This is a consistency check, not a benchmark.** Seven hand-authored fixtures, and
 the locator conventions (`row=…,col=…`, `col=…`, `column=…`, `stdout`) plus the
-table row rule were written with the two committed table fixtures in view. A
-12/12 means *"the linker reproduces the hand-authored provenance exactly, and
+table row rule were written with the committed table fixtures in view. A
+14/14 means *"the linker reproduces the hand-authored provenance exactly, and
 invents nothing"* — a real property, and the one M5 depends on. It does **not**
 mean retrieval is solved.
 

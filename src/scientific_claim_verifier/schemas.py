@@ -37,8 +37,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # Bumped from the Milestone 0 placeholder ("0-stub") now that the real typed
 # models exist. Written into every ``RunTrace`` so a trace records the schema it
-# was produced under.
-SCHEMA_VERSION = "1.0"
+# was produced under. 1.1 adds ``CheckStatus.INCONCLUSIVE`` (Milestone 5) — an
+# additive change: every 1.0 document is still valid.
+SCHEMA_VERSION = "1.1"
 
 # A scalar cell / value as it may appear in a table, a computed result, or an
 # expected output. ``None`` represents an absent cell. Booleans are intentionally
@@ -140,10 +141,24 @@ class CheckType(StrEnum):
 
 
 class CheckStatus(StrEnum):
-    """Outcome of a single check. ``ERROR`` = the check itself could not run."""
+    """Outcome of a single check.
+
+    The four negative outcomes are deliberately distinct, because they mean
+    different things to scoring (Milestone 7):
+
+    - ``FAIL`` — the check ran and the artifacts *disagree* with the claim.
+    - ``INCONCLUSIVE`` — the check ran and its method **cannot decide**. A
+      bag-of-words evidence check cannot confirm that a paraphrase asserts a
+      claim, so it says so rather than guessing ``pass`` or ``fail``. This maps
+      onto ``unverifiable_from_artifacts``, never onto ``contradicted``.
+    - ``ERROR`` — the check itself could not run (missing file, dangling link,
+      non-numeric cell, script crash).
+    - ``SKIPPED`` — the check did not apply (nothing was located to look at).
+    """
 
     PASS = "pass"
     FAIL = "fail"
+    INCONCLUSIVE = "inconclusive"
     ERROR = "error"
     SKIPPED = "skipped"
 

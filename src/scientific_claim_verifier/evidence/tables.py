@@ -43,7 +43,7 @@ from dataclasses import dataclass
 # and "f1" are the same metric in both places).
 from ..claims.extraction import extract_metrics
 from ..schemas import ScientificClaim, Table
-from . import MatchMethod
+from . import MatchMethod, locators
 from .passages import STOPWORDS
 
 
@@ -165,7 +165,7 @@ def link_table(claim: ScientificClaim, table: Table) -> list[TableMatch]:
                 cells.append(
                     TableMatch(
                         table_id=table.table_id,
-                        locator=f"row={label},col={column}",
+                        locator=locators.table_cell(label, column),
                         method=MatchMethod.TABLE_CELL,
                         matched_value=float(cell),
                     )
@@ -178,7 +178,7 @@ def link_table(claim: ScientificClaim, table: Table) -> list[TableMatch]:
             or [
                 TableMatch(
                     table_id=table.table_id,
-                    locator=f"col={column}",
+                    locator=locators.table_column(column),
                     method=MatchMethod.TABLE_COLUMN,
                 )
             ]

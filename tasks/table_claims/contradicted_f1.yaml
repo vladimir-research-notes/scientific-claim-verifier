@@ -1,0 +1,75 @@
+# Contradiction (task family #6 in docs/PLAN.md §7).
+# The paper's own sentence asserts the claim verbatim; the results table refutes
+# it. The two evidence channels disagree, and the report must show both.
+# Gold outcome: contradicted.
+task_id: contradicted_f1
+family: contradiction
+title: "Method B reaches F1 91.0 (the table says 86.0)"
+description: >
+  The abstract states an F1 of 91.0 for Method B on MNLI, but the results table
+  reports 86.0. The evidence_presence check passes — the passage really does
+  assert the claim — while the table_value check fails, because 91.0 appears
+  nowhere in the F1 column. This is the fixture that shows why a report must keep
+  supporting text and computed check separate: collapsing them into one verdict
+  would lose the fact that the paper says one thing and its own table says
+  another.
+
+claim:
+  claim_id: c_contradicted_f1
+  claim_text: "Method B reaches an F1 score of 91.0 on MNLI."
+  claim_type: numeric_claim
+  source_document_id: paper_mnli
+  source_passage: p_claim
+
+artifacts:
+  bundle_id: bundle_contradicted_f1
+  task_id: contradicted_f1
+  papers:
+    - artifact_id: paper_mnli
+      title: "Method B on MNLI"
+      passages:
+        - passage_id: p_claim
+          section: "Abstract"
+          text: "Method B reaches an F1 score of 91.0 on MNLI."
+        - passage_id: p_table
+          section: "Results"
+          text: >
+            Table 2 reports F1 for both systems on the MNLI validation split.
+  tables:
+    - table_id: t_mnli
+      caption: "Table 2: F1 on MNLI (validation)."
+      columns: [method, f1]
+      rows:
+        - [baseline, 84.0]
+        - [B, 86.0]
+      notes: "The abstract's 91.0 appears in no row of this column."
+  metadata:
+    license: synthetic
+    provenance: hand-authored synthetic fixture
+
+expected:
+  support_label: contradicted
+  reproduction_status: not_applicable
+  failure_mode: table_cell_mismatch
+  claim:
+    normalized_claim: "f1(Method B) = 91.0 on MNLI"
+    entities: [Method B]
+    metrics: [f1]
+    datasets: [MNLI]
+    expected_value: 91.0
+    comparison_operator: "="
+    units: "%"
+  evidence:
+    - kind: passage
+      target_id: p_claim
+      quote: "Method B reaches an F1 score of 91.0 on MNLI"
+    - kind: table
+      target_id: t_mnli
+      locator: "col=f1"
+
+notes: >
+  No cell locator is emitted: the claim names row B, but 91.0 matches no cell, so
+  the linker links the whole F1 column — which is exactly what lets the table check
+  discover the contradiction. Compare `underspecified_split`, where the value IS
+  present in the column but the claim names no row: same locator shape, opposite
+  verdict, and the difference is visible in the check's `matching_rows` input.

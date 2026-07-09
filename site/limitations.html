@@ -39,17 +39,33 @@
   comparison claims in clean text and will miss or mis-parse complex phrasing. It is a
   transparent baseline, not a state-of-the-art NLP system, and is labelled as such everywhere.</p>
 
+  <h2>The evidence check cannot confirm a paraphrase</h2>
+  <p>Deciding whether a passage <em>asserts</em> a claim is done lexically: verbatim containment, or
+  every content token of the claim present with matching polarity. It has no model of morphology or
+  synonymy — <code>trained</code> does not match <code>training</code> — so a passage that supports
+  the claim in different words is reported <code>inconclusive</code>, not <code>pass</code>. One of
+  the seven committed fixtures lands there, and that is the correct answer for this method rather
+  than a bug: the alternative is to guess. Negation cues are a closed set of function words, so
+  contractions (<code>doesn't</code>) are not detected, and verbatim containment is not
+  polarity-checked. See <a href="checks.html">Checks</a>.</p>
+
   <h2>Fixtures are small and synthetic</h2>
   <p>Fixtures are tiny, synthetic or open datasets chosen to exercise the checks. They are not
   representative of real papers at scale, and results should not be read as a benchmark
-  leaderboard.</p>
+  leaderboard. The locator conventions and the table row rule were written with the committed table
+  fixtures in view, so a perfect linking score is a consistency check, not evidence that retrieval
+  is solved.</p>
 
   <h2>The sandbox is not a security boundary</h2>
   <div class="callout warn">The code-execution layer runs <strong>tiny, trusted fixture
-  scripts</strong> in a temp dir with a timeout and captured output. It provides no process
-  isolation, resource-limit, or network-policy guarantees against adversarial code. It is
-  controlled fixture execution for reproducibility — <strong>not</strong> a production-grade or
-  untrusted-code sandbox. Do not run untrusted code through it.</div>
+  scripts</strong> committed to this repository. As shipped in Milestone 5 it is a bare child
+  process with a wall-clock timeout, closed stdin, and captured stdout/stderr/exit-code — it does
+  <strong>not</strong> copy the script to a temp directory, scrub the environment, restrict the
+  filesystem, or block the network (Milestone 6 adds the temp dir and the no-network policy behind
+  the same runner protocol). Even then it provides no process-isolation or resource-limit guarantees
+  against adversarial code. It is controlled fixture execution for reproducibility —
+  <strong>not</strong> a production-grade or untrusted-code sandbox. Do not run untrusted code
+  through it.</div>
 
   <h2>Reproduction is lightweight</h2>
   <p>"Reproduction" here means recomputing a statistic or running a tiny script and comparing to

@@ -29,7 +29,7 @@
   <p class="lede">Scoring maps the set of checks onto three explicit vocabularies: a support
   label (is the claim backed?), a reproducibility status (did the computation reproduce?), and
   a failure mode (if not, why?).</p>
-  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status planned">scoring logic lands in Milestone 7</span></p>
+  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status done">checks that feed scoring live in Milestone 5</span> &nbsp; <span class="status planned">scoring logic lands in Milestone 7</span></p>
 
   <h2>Support labels</h2>
   <table>
@@ -55,12 +55,32 @@
     <tr><td><span class="pill">not_attempted</span></td><td>Reproduction was possible but not run.</td></tr>
   </table>
 
+  <div class="callout"><strong>Why <code>failed_environment</code> and
+  <code>failed_numeric_mismatch</code> are separate.</strong> Because the checks that feed them are.
+  <code>code_execution</code> judges whether the script <em>ran</em>; a timeout or a non-zero exit is
+  an <code>error</code>, never a <code>fail</code>, since a script that will not run tells you
+  nothing about the claim's number. A separate <code>numeric_tolerance</code> check judges whether
+  the number it printed <em>agrees</em>. A single boolean could not tell these apart. See
+  <a href="checks.html">Checks</a>.</div>
+
+  <h2>Tolerance</h2>
+  <p>"Within tolerance" above means: within the claim's own <strong>reported precision</strong>. A
+  value written <code>3.4</code> asserts only that the quantity rounds to <code>3.4</code>, so the
+  threshold is ±0.05; <code>0.80</code> gives ±0.005; a count is exact. Every check records the
+  threshold it applied next to the signed difference, and a task or a command-line flag may
+  override it.</p>
+
   <h2>Failure modes</h2>
   <p>When a claim is not cleanly supported/reproduced, the result carries a
   <code>failure_mode</code> that names the reason: missing evidence link, passage does not
   assert the claim, table cell mismatch, statistic mismatch, numeric out of tolerance, missing
   data, missing code, execution error/timeout, or underspecification. Failure modes are what
   make aggregate results diagnostic rather than a single pass-rate number.</p>
+  <p>The signals a check leaves behind are what make this possible. Given the bare column locator
+  <code>col=accuracy</code>, the table check records <code>matching_rows</code> and
+  <code>n_rows</code>: a claimed value found at one of two rows, with no row named, is
+  <code>underspecified</code>; a claimed value found at <em>no</em> row is <code>contradicted</code>.
+  Same locator, different <code>inputs</code>, different label.</p>
 
   <h2>Aggregate summary</h2>
   <p>A suite run produces a summary (CSV/JSON) counting support labels, reproducibility

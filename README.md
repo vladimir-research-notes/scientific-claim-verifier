@@ -16,11 +16,13 @@ is a small but real reproducibility tool and benchmark platform. See
 [`docs/PLAN.md`](docs/PLAN.md) for the full plan and
 [`site/`](site/index.html) for the project website.
 
-> **Build status:** Milestone 0 complete — the runnable package scaffold
-> (`scientific_claim_verifier`, the `claimverifier` CLI, and an offline
-> environment self-check) is in place on top of the bootstrap layer. The
-> verification subsystems are built milestone by milestone — see below. This
-> README is upgraded to portfolio quality in Milestone 12.
+> **Build status:** Milestones 0–5 complete. The typed schema, the task format and
+> its validator, rule-based claim extraction, the evidence linker, and the
+> deterministic verification checks are in place: a claim can be extracted, linked
+> to the exact cell/column/script that bears on it, and checked against those
+> artifacts. Scoring (support labels, failure modes) is Milestone 7. The remaining
+> subsystems are built milestone by milestone — see below. This README is upgraded
+> to portfolio quality in Milestone 12.
 
 ## Quickstart
 
@@ -78,6 +80,7 @@ claimverifier version
 claimverifier validate-fixtures tasks/
 claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml --out results/runs/
 claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml --no-declared-source
+claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
 ```
 
 `link-evidence` reports the ranked passage candidates, the emitted evidence links
@@ -87,6 +90,14 @@ behind each. `--no-declared-source` ignores the task's authored
 retrieval is actually worth measuring. See
 [`docs/EVIDENCE_LINKING.md`](docs/EVIDENCE_LINKING.md).
 
+`run-checks` reads each located artifact and computes: does the passage *assert*
+the claim, is the value in that table cell, does the statistic recompute from the
+CSV, does the script print what the claim says. It prints supporting text and
+computed checks as separate blocks and **assigns no verdict** — the support label
+is inferred from the checks by scoring (M7). On `contradicted_f1` the passage check
+passes and the table check fails, which is the point. See
+[`docs/CHECKS.md`](docs/CHECKS.md).
+
 Target (each lands with its subsystem — see the milestones):
 
 ```bash
@@ -95,7 +106,9 @@ claimverifier run-suite     --suite tasks/smoke_suite.yaml --out results/runs/
 claimverifier report        --run results/runs/<run_id> --out results/reports/<run_id>.md
 ```
 
-An unimplemented command fails loudly rather than pretending to work.
+An unimplemented command fails loudly rather than pretending to work. `run-checks`
+is deliberately not `verify`: it computes checks and stops, because `verify` implies
+a support label and that inference belongs to scoring.
 
 ## Building the system (milestone runner)
 

@@ -9,10 +9,13 @@ Commands online so far:
 - ``claimverifier validate-fixtures``  — validate task fixtures (M2).
 - ``claimverifier extract-claims``     — rule-based claim extraction (M3).
 - ``claimverifier link-evidence``      — evidence linking (M4).
+- ``claimverifier run-checks``         — deterministic verification checks (M5).
 
-``link-evidence`` is an addition beyond the ``docs/PLAN.md`` section 10 contract:
-that section lists the end-to-end verbs, but a per-stage command keeps each
-subsystem independently runnable and auditable.
+``link-evidence`` and ``run-checks`` are additions beyond the ``docs/PLAN.md``
+section 10 contract: that section lists the end-to-end verbs, but a per-stage
+command keeps each subsystem independently runnable and auditable. ``run-checks``
+is not ``verify``: it computes checks and stops there. ``verify`` implies a support
+label, which is inferred by scoring (M7), and it is registered in that milestone.
 
 The remaining verification commands advertised in ``docs/PLAN.md`` section 10
 (``verify``, ``run-suite``, ``report``) come online in their respective
@@ -26,6 +29,7 @@ import argparse
 
 from . import __version__, envcheck
 from .artifacts import validation
+from .checks import verification
 from .claims import extraction, linking
 
 
@@ -39,8 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         epilog=(
             "Live commands: `check-env`, `version`, `validate-fixtures`, "
-            "`extract-claims`, `link-evidence`; the remaining verification "
-            "commands land in later milestones (see docs/PLAN.md)."
+            "`extract-claims`, `link-evidence`, `run-checks`; the remaining "
+            "verification commands land in later milestones (see docs/PLAN.md)."
         ),
     )
     parser.add_argument(
@@ -82,6 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     linking.add_link_arguments(link)
 
+    checks = subparsers.add_parser(
+        "run-checks",
+        help="Run the deterministic verification checks for a task (offline).",
+    )
+    verification.add_check_arguments(checks)
+
     return parser
 
 
@@ -105,6 +115,16 @@ def main(argv: list[str] | None = None) -> int:
             out_dir=args.out,
             as_json=args.json,
             use_declared_source=not args.no_declared_source,
+        )
+    if args.command == "run-checks":
+        return verification.check_and_report(
+            args.task,
+            out_dir=args.out,
+            as_json=args.json,
+            use_declared_source=not args.no_declared_source,
+            execute=not args.no_execute,
+            abs_tol=args.abs_tol,
+            rel_tol=args.rel_tol,
         )
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is

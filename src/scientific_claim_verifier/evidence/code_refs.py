@@ -24,7 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..schemas import ArtifactBundle, ClaimType, ScientificClaim
-from . import MatchMethod
+from . import MatchMethod, locators
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ class CodeMatch:
 def stdout_locator(bundle: ArtifactBundle) -> str | None:
     """``"stdout"`` when the bundle declares a stdout expectation, else ``None``."""
     declares_stdout = any(str(key).startswith("stdout") for key in bundle.expected_outputs)
-    return "stdout" if declares_stdout else None
+    return locators.STDOUT if declares_stdout else None
 
 
 def link_code(

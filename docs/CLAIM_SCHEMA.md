@@ -12,7 +12,9 @@ The models are [`pydantic`](https://docs.pydantic.dev) v2 `BaseModel`s. They sha
 one config choice: **`extra="forbid"`** — an unknown field is a hard validation
 error, not a silently dropped key, so a typo in a task file fails loudly.
 
-`SCHEMA_VERSION = "1.0"` is stamped into every `RunTrace`.
+`SCHEMA_VERSION = "1.1"` is stamped into every `RunTrace`. Version `1.1`
+(Milestone 5) added `CheckStatus.INCONCLUSIVE`; it is an additive change, so every
+`1.0` document remains valid.
 
 ## Design principles
 
@@ -82,7 +84,20 @@ supplied bundle**, not a universal truth.
 
 ### `CheckStatus`
 
-`pass` · `fail` · `error` (the check itself could not run) · `skipped`.
+`pass` · `fail` · `inconclusive` · `error` · `skipped`.
+
+The four non-`pass` values are deliberately distinct, because they mean different
+things to scoring (M7):
+
+| Value | Meaning |
+| --- | --- |
+| `fail` | The check ran and the artifacts **disagree** with the claim. |
+| `inconclusive` | The check ran and its **method cannot decide** — e.g. a bag-of-words evidence check faced with a paraphrase. Maps onto `unverifiable_from_artifacts`, never `contradicted`. |
+| `error` | The check itself could not run (missing file, dangling link, non-numeric cell, script crash). |
+| `skipped` | The check did not apply (nothing was located to look at). |
+
+Collapsing `inconclusive` into `fail` would manufacture contradictions out of the
+checker's own ignorance. See `docs/CHECKS.md`.
 
 ## Models
 

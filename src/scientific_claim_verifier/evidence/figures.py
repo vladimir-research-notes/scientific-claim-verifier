@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..schemas import Figure, ScientificClaim
-from . import MatchMethod
+from . import MatchMethod, locators
 from .tables import normalize_header
 
 
@@ -57,7 +57,9 @@ def link_figures(
         series = matching_series(figure, claim.metrics)
         if series is not None:
             matches.append(
-                FigureMatch(figure.figure_id, f"series={series}", MatchMethod.FIGURE_SERIES)
+                FigureMatch(
+                    figure.figure_id, locators.figure_series(series), MatchMethod.FIGURE_SERIES
+                )
             )
     if matches:
         return matches

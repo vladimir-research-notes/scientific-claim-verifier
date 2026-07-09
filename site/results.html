@@ -29,10 +29,52 @@
   <p class="lede">This page reports measured outcomes. Every number is reproducible offline on a
   single CPU with the command shown beside it. Numbers that do not exist yet are marked pending,
   never estimated.</p>
-  <p><span class="status done">status: Milestones 3–4 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+  <p><span class="status done">status: Milestones 3–5 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+
+  <h2>Verification checks (Milestone 5)</h2>
+  <pre><code>python3 -m pytest tests/test_checks.py -q     # 112 tests
+claimverifier run-checks --task &lt;task.yaml&gt;   # per-task check report</code></pre>
+  <p>18 checks over the seven committed fixtures: <strong>16 pass, 1 fail, 1 inconclusive</strong>,
+  0 error, 0 skipped. No check assigns a support label — that inference is Milestone 7's.</p>
+
+  <table>
+    <tr><th>Task</th><th>Checks</th><th>Outcome</th></tr>
+    <tr><td><code>accuracy_improvement</code></td><td>4</td><td><code>evidence_presence</code> pass · <code>table_value</code> pass ×2 · <code>comparison</code> pass</td></tr>
+    <tr><td><code>contradicted_f1</code></td><td>2</td><td><code>evidence_presence</code> <strong>pass</strong> · <code>table_value</code> <strong>fail</strong></td></tr>
+    <tr><td><code>dataset_mean</code></td><td>3</td><td><code>evidence_presence</code> pass · <code>dataset_statistic</code> pass ×2</td></tr>
+    <tr><td><code>gc_content</code></td><td>3</td><td><code>evidence_presence</code> pass · <code>code_execution</code> pass · <code>numeric_tolerance</code> pass</td></tr>
+    <tr><td><code>recompute_accuracy</code></td><td>3</td><td><code>evidence_presence</code> pass · <code>code_execution</code> pass · <code>numeric_tolerance</code> pass</td></tr>
+    <tr><td><code>synthetic_data_passage</code></td><td>1</td><td><code>evidence_presence</code> <strong>inconclusive</strong></td></tr>
+    <tr><td><code>underspecified_split</code></td><td>2</td><td><code>evidence_presence</code> pass · <code>table_value</code> pass (ambiguous over 2 rows)</td></tr>
+  </table>
+
+  <div class="callout"><strong>The two rows that matter.</strong>
+  <p><code>contradicted_f1</code> — <em>the fixture the project exists for.</em> The abstract states
+  "Method B reaches an F1 score of 91.0 on MNLI" verbatim, so <code>evidence_presence</code> passes.
+  The results table reports 86.0, so <code>table_value</code> fails. Both are correct, and a system
+  that collapsed them into one verdict would destroy the only interesting fact about the claim: the
+  paper contradicts its own table.</p>
+  <p><code>synthetic_data_passage</code> — <em>the check admitting it cannot decide.</em> Gold says
+  <code>supported</code>, and the passage really does support the claim. But "the model is trained
+  <strong>only</strong> on synthetic data" is asserted by "no real corpora were used at any stage of
+  <strong>training</strong>" — a paraphrase. Token coverage is 40%: <code>trained</code> ≠
+  <code>training</code>, and <code>only</code> ≠ <code>no real corpora were used</code>. A
+  bag-of-words rule cannot bridge that, so the check returns <strong><code>inconclusive</code></strong>,
+  not <code>fail</code>. This is the honest cost of a transparent method, and it is the number to
+  watch: a stronger evidence checker is measured by whether it moves this claim to <code>pass</code>
+  <em>without</em> moving <code>contradicted_f1</code>'s passage check off <code>pass</code>.</p></div>
+
+  <p>Same locator, opposite verdict — only the check's recorded <code>inputs</code> tell them apart:</p>
+  <table>
+    <tr><th>Fixture</th><th>Claimed</th><th>Column values</th><th><code>matching_rows</code></th><th>Status</th></tr>
+    <tr><td><code>underspecified_split</code></td><td>90.0</td><td><code>dev 90.0</code>, <code>test 82.0</code></td><td><code>["dev"]</code></td><td><code>pass</code> — value present, row not named</td></tr>
+    <tr><td><code>contradicted_f1</code></td><td>91.0</td><td><code>baseline 84.0</code>, <code>B 86.0</code></td><td><code>[]</code></td><td><code>fail</code> — nearest 86.0 at row <code>B</code></td></tr>
+  </table>
+  <p>Every numeric verdict above used a tolerance <strong>read off the claim</strong>: 91.0 was
+  written to one decimal place, so ±0.05. See <a href="checks.html">Checks</a>.</p>
 
   <h2>Evidence linking vs. gold (Milestone 4)</h2>
-  <pre><code>python3 -m pytest tests/test_linking.py -q                      # 69 tests
+  <pre><code>python3 -m pytest tests/test_linking.py -q                      # 70 tests
 claimverifier link-evidence --task &lt;task.yaml&gt; --no-declared-source</code></pre>
   <p>Emitted <code>EvidenceLink</code>s scored against each task's gold
   <code>expected.evidence</code>, <strong>blind</strong> — ignoring the task's declared
@@ -43,15 +85,16 @@ claimverifier link-evidence --task &lt;task.yaml&gt; --no-declared-source</code>
   <table>
     <tr><th>Task</th><th>Gold links</th><th>Recovered</th><th>Spurious</th></tr>
     <tr><td><code>accuracy_improvement</code></td><td>3</td><td>3</td><td>0</td></tr>
+    <tr><td><code>contradicted_f1</code></td><td>2</td><td>2</td><td>0</td></tr>
     <tr><td><code>dataset_mean</code></td><td>2</td><td>2</td><td>0</td></tr>
     <tr><td><code>gc_content</code></td><td>2</td><td>2</td><td>0</td></tr>
     <tr><td><code>recompute_accuracy</code></td><td>2</td><td>2</td><td>0</td></tr>
     <tr><td><code>synthetic_data_passage</code></td><td>1</td><td>1</td><td>0</td></tr>
     <tr><td><code>underspecified_split</code></td><td>2</td><td>2</td><td>0</td></tr>
-    <tr><td><strong>total</strong></td><td><strong>12</strong></td><td><strong>12</strong></td><td><strong>0</strong></td></tr>
+    <tr><td><strong>total</strong></td><td><strong>14</strong></td><td><strong>14</strong></td><td><strong>0</strong></td></tr>
   </table>
   <p>Strict precision 1.00, recall 1.00. Honouring the declared <code>source_passage</code> gives
-  the same 12/12 — it changes the passage link's <em>method</em>, not its target.</p>
+  the same 14/14 — it changes the passage link's <em>method</em>, not its target.</p>
 
   <p>Passage overlap scores, the one channel whose outcome is not forced by an identifier:</p>
   <table>
@@ -63,7 +106,7 @@ claimverifier link-evidence --task &lt;task.yaml&gt; --no-declared-source</code>
 
   <div class="callout"><strong>How to read this.</strong> A <em>consistency check, not a
   benchmark</em>. The locator conventions and the table row rule were written with the two
-  committed table fixtures in view. 12/12 means "the linker reproduces the hand-authored
+  committed table fixtures in view. 14/14 means "the linker reproduces the hand-authored
   provenance exactly, and invents nothing" — a real property, and the one Milestone 5 depends on
   — not that retrieval is solved. <strong><code>synthetic_data_passage</code> is the only fixture
   where keyword overlap is load-bearing</strong>: the claim appears nowhere verbatim, so the
@@ -77,25 +120,26 @@ claimverifier link-evidence --task &lt;task.yaml&gt; --no-declared-source</code>
   <pre><code>python3 -m pytest tests/test_extraction.py -q     # 36 tests
 claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. gold</code></pre>
   <p>Per-field recovery of the rule-based extractor against each task's gold extraction target,
-  over all six committed fixtures. List fields compare as sets; floats with
+  over all seven committed fixtures. List fields compare as sets; floats with
   <code>math.isclose</code>. <code>normalized_claim</code> is not scored — it is the extractor's
   own notation, not a gold match target.</p>
 
   <table>
     <tr><th>Field</th><th>Recovered</th><th>Channel</th></tr>
-    <tr><td><code>expected_value</code></td><td>6/6</td><td>reliable</td></tr>
-    <tr><td><code>baseline_value</code></td><td>6/6</td><td>reliable</td></tr>
-    <tr><td><code>comparison_operator</code></td><td>6/6</td><td>reliable</td></tr>
-    <tr><td><code>units</code></td><td>6/6</td><td>reliable</td></tr>
-    <tr><td><code>metrics</code></td><td>6/6</td><td>reliable</td></tr>
-    <tr><td><code>datasets</code></td><td>6/6</td><td>best effort</td></tr>
-    <tr><td><code>entities</code></td><td>6/6</td><td>best effort</td></tr>
-    <tr><td><code>conditions</code></td><td><strong>5/6</strong></td><td>best effort</td></tr>
+    <tr><td><code>expected_value</code></td><td>7/7</td><td>reliable</td></tr>
+    <tr><td><code>baseline_value</code></td><td>7/7</td><td>reliable</td></tr>
+    <tr><td><code>comparison_operator</code></td><td>7/7</td><td>reliable</td></tr>
+    <tr><td><code>units</code></td><td>7/7</td><td>reliable</td></tr>
+    <tr><td><code>metrics</code></td><td>7/7</td><td>reliable</td></tr>
+    <tr><td><code>datasets</code></td><td>7/7</td><td>best effort</td></tr>
+    <tr><td><code>entities</code></td><td>7/7</td><td>best effort</td></tr>
+    <tr><td><code>conditions</code></td><td><strong>6/7</strong></td><td>best effort</td></tr>
   </table>
 
   <table>
     <tr><th>Task</th><th>Claim type</th><th>Scored fields</th></tr>
     <tr><td><code>accuracy_improvement</code></td><td><code>comparison_claim</code></td><td>8/8</td></tr>
+    <tr><td><code>contradicted_f1</code></td><td><code>numeric_claim</code></td><td>8/8</td></tr>
     <tr><td><code>dataset_mean</code></td><td><code>dataset_claim</code></td><td>8/8</td></tr>
     <tr><td><code>gc_content</code></td><td><code>code_reproduction_claim</code></td><td>8/8</td></tr>
     <tr><td><code>recompute_accuracy</code></td><td><code>code_reproduction_claim</code></td><td>8/8</td></tr>
@@ -103,10 +147,10 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td><code>synthetic_data_passage</code></td><td><code>descriptive_claim</code></td><td>7/8</td></tr>
   </table>
 
-  <div class="callout"><strong>How to read this.</strong> Six hand-authored fixtures are a
+  <div class="callout"><strong>How to read this.</strong> Seven hand-authored fixtures are a
   <em>sanity check, not a benchmark</em>, and the extractor's lexicons were chosen with them in
-  view. A <code>6/6</code> on <code>datasets</code> means "both dataset mentions present were
-  found" — not that dataset extraction is solved. The <strong><code>5/6</code> on
+  view. A <code>7/7</code> on <code>datasets</code> means "every dataset mention present was
+  found" — not that dataset extraction is solved. The <strong><code>6/7</code> on
   <code>conditions</code> is the most informative number here</strong>: the miss is
   <code>synthetic_data_passage</code>, whose gold condition <code>"synthetic data only"</code> is
   a semantic paraphrase. The extractor returns <code>[]</code> rather than guessing — by design,
@@ -115,7 +159,8 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
 
   <h2>Fixture validation (Milestone 2)</h2>
   <pre><code>python3 scripts/01_validate_fixtures.py</code></pre>
-  <p>6 tasks ok, 0 failed, 0 warnings — <code>VALID</code>.</p>
+  <p>7 tasks ok, 0 failed, 0 warnings — <code>VALID</code>. Six tasks were authored in Milestone 2;
+  <code>contradicted_f1</code> was added in Milestone 5.</p>
 
   <h2>Tests and lint</h2>
   <table>
@@ -125,9 +170,11 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td>M2</td><td>28</td><td>66</td></tr>
     <tr><td>M3</td><td>36</td><td>102</td></tr>
     <tr><td>M4</td><td>69</td><td>171</td></tr>
+    <tr><td>M5</td><td>114</td><td>285</td></tr>
   </table>
   <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
-  anywhere in the default path. <code>ruff check .</code> passes.</p>
+  anywhere in the default path. Milestone 5's tests execute two committed, stdlib-only fixture
+  scripts as child processes — local, harmless, and offline. <code>ruff check .</code> passes.</p>
 
   <h2>Smoke suite (pending)</h2>
   <p>The smoke suite will contain 8–15 verification tasks across the task families and run
