@@ -16,6 +16,8 @@ that do not exist yet are marked pending, not estimated.
 | Support labels / failure modes | M7 | measured below |
 | Smoke suite (8–15 tasks, end to end) | M8 | 11 tasks, gate PASS |
 | Reports generated from traces | M9 | 11 reports + index, round trip exact |
+| Integration exports | M11 | 5 formats, byte-stable, no external import |
+| Episode replay | M11 | 11/11 reproduced, byte-identical traces (`--strict`) |
 
 > **The fixture set grew in M8**, from seven tasks to eleven, so that the smoke suite
 > could reach the labels and statuses the original seven never produced —
@@ -823,10 +825,153 @@ HTTP transport (the repo ships none, and a test asserts no module under `adapter
 declared dependency imports one). Each gate is tested with a counting fake transport that a
 default build never reaches. See `docs/ADAPTERS.md`.
 
+## M11 — integration contracts (five exports, and one that replays)
+
+```bash
+python3 -m pytest tests/test_integrations.py -q                                    # 86 tests
+claimverifier export --list
+claimverifier run-suite --out results/runs/
+claimverifier export --format episodes --run results/runs/smoke_suite --out ep.json
+claimverifier replay --episodes ep.json --strict
+```
+
+Five versioned export formats, one per consumer role named in `docs/PLAN.md` §9:
+
+| `--format` | Document | Consumer role | Reads |
+| --- | --- | --- | --- |
+| `runnable-tasks` | `scv.runnable-tasks` | code-agent runtime | `tasks/` |
+| `evidence-records` | `scv.evidence-records` | BioScientist OS | a run's traces |
+| `benchmark` | `scv.benchmark` | BioAgentBench | a suite run (traces + gold) |
+| `metrics` | `scv.metrics` | LLM regression / observability | a suite run (traces + gold) |
+| `episodes` | `scv.episodes` | agent-control-bench | a suite run + `tasks/` |
+
+**No external schema was consulted.** None of those five systems was read, imported, or
+run, so nothing here is a measurement of compatibility with any of them, and the word is
+not used. What is claimed — and checked — is containment: a test parses every module under
+`integrations/` and fails if it imports anything but the standard library, `pydantic`, and
+this project. If a named repo wants different keys, the change is one ~200-line module and
+a `format_version` bump.
+
+### The result is the round trip
+
+The only number in this section that measures anything beyond a shape:
+
+```
+$ claimverifier replay --episodes ep.json --strict
+
+Episodes        : 11
+Gate            : verdict + trace bytes (--strict)
+
+  [ok   ] synthetic_data_passage   reproduced
+  ... (10 more)
+
+Reproduced      : 11/11
+Result          : PASS
+```
+
+An episode pins the task file's hash, every artifact of its bundle by content hash, the
+four controls, the recorded verdict, and the SHA-256 of the trace the run wrote. Replaying
+it re-runs the whole pipeline — extraction, linking, checks, the three fixture scripts in
+the sandbox — and compares. All eleven reproduce, and all eleven come back with a
+**byte-identical trace**, which is what makes `trace_content_hash` a pin rather than a
+courtesy. The property was established in M8 (`docs/RESULTS.md` §M8, "What is
+byte-reproducible"); M11 is the first thing that depends on it.
+
+### Four replay statuses, and only one of them blames the pipeline
+
+| Status | Meaning | Injected in tests by |
+| --- | --- | --- |
+| `reproduced` | same inputs, same verdict | — |
+| `drifted` | same inputs, **different verdict** | doctoring a recorded verdict |
+| `inputs_changed` | a fixture, paper, or task file is not the recorded bytes | tampering with a content hash |
+| `missing_task` | the task file is gone | pointing at a deleted path |
+
+Collapsing the last three into "failed" would let an edited CSV read as a code regression,
+which is precisely the mistake a replay harness exists to prevent. A gate that never fails
+proves nothing when it passes, so each of the four is *injected* and shown to be caught.
+
+`trace_digest_matches` is reported for every episode but gated only under `--strict`:
+rewording one `because` string in the scoring rules changes every trace's bytes while every
+verdict stands. That is the same asymmetry the smoke suite draws between a wrong verdict
+and a conservative miss.
+
+### The benchmark declares its metric, because the obvious one is wrong
+
+`scv.benchmark` carries a `scoring` block naming `wrong_verdicts` (lower is better) as its
+primary metric and `conservative_misses` as secondary, with a note that says **do not sum
+them**. Label accuracy — the metric a harness reaches for by default — would score this
+pipeline 10/11 and would score a version that guessed on its one honest refusal 11/11.
+
+The export does not re-implement that judgement. It computes each task's bucket with the
+same `TaskOutcome` object `suite.gate()` reads, so the exported `outcome` and the gate's
+verdict cannot diverge. Over the eleven committed fixtures the export carries **0 wrong
+verdicts and 1 conservative miss** (`synthetic_data_passage`), which is exactly what
+`summary.txt` says.
+
+Predicted verdicts come from the traces; gold comes from `summary.json`, because a trace
+never carries gold — gold is never an input to the run that wrote it. The two are
+cross-checked, and a run directory whose traces and summary disagree is **refused rather
+than scored**: it holds artifacts from two different runs, and any number computed from it
+is a fiction.
+
+### A fixed key space is the whole of an observability contract
+
+`scv.metrics` emits **40 metrics on every run**, covering every value of every closed
+vocabulary — 6 support labels, 8 reproduction statuses, 13 failure modes, 5 check statuses
+— zero-valued when unseen. A key that *appears* between two runs is a key a diff tool has
+to guess about, and it will guess wrong in one of the two available directions.
+
+| Metric | Value | Direction |
+| --- | --- | --- |
+| `tasks` | 11 | neutral |
+| `checks_total` | 26 | neutral |
+| `mean_confidence` | 0.848485 | neutral |
+| `gold_support_agreement` | 10 | higher is better |
+| `gold_reproduction_agreement` | 11 | higher is better |
+| `conservative_misses` | 1 | **lower is better** |
+| `wrong_verdicts` | **0** | **lower is better** |
+
+Only six of the forty declare a direction. `checks_fail` is `neutral` on purpose: a suite
+of contradicted claims *should* produce failing checks, and a regression tool that treated
+that as a regression would punish the tool for working. The reference `compare()` refuses
+two documents whose key sets differ rather than intersecting them, and a test drives the
+scenario this project is arranged around — a conservative miss turning into a wrong
+verdict, with gold agreement unchanged. Accuracy calls it a wash; `compare()` flags
+`wrong_verdicts`.
+
+### What the exports do not carry, and why
+
+`evidence-records` keeps the five audit channels as five sibling keys (`claim`, `evidence`,
+`checks`, `verdict`, `unverifiable`), plus the named rule behind each verdict field. It
+deliberately omits `VerificationCheck.inputs` — the per-check debugging bag whose keys vary
+by check type and which, for `code_execution`, holds captured stdout. A stable contract
+cannot carry a field whose shape is decided by whichever check happened to write it, and an
+evidence store is the last place that should start holding process output by accident. A
+test asserts the string `accuracy=0.80` — real stdout from a fixture script, present in the
+trace — appears in no exported record.
+
+Every export is a function of committed artifacts: sorted-key JSON, no wall clock, no RNG,
+byte-identical across two exports *and* across two run directories. A test walks every
+string of every document and fails on an absolute path, because a document carrying
+`/home/someone/checkout` is a document about one machine.
+
+### The gap this milestone did not close
+
+A schema-1.3 trace records what the pipeline **computed**, not how an operator **invoked**
+it, so it carries none of the four controls (`execute`, `use_declared_source`, `abs_tol`,
+`rel_tol`). `export --format episodes` recovers `execute` from the one artifact that does
+record it — a suite `summary.json` — and *refuses* when the operator's declared
+`--no-execute` disagrees with it. The other three are taken from the operator's flags.
+
+A wrongly declared control does not silently lie: replaying the episode reports `drifted`
+and names the field. But it is an assumption, and removing it means recording the controls
+in the trace (a `scoring.controls` event, schema 1.4). That is a schema change, and it
+belongs to the milestone that needs it. See `docs/INTEGRATIONS.md`.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 670 passed
+python3 -m pytest -q     # 756 passed
 ruff check .             # all checks passed
 ```
 
@@ -843,11 +988,13 @@ ruff check .             # all checks passed
 | M8 | 48 | 500 |
 | M9 | 100 | 600 |
 | M10 | 70 | 670 |
+| M11 | 86 | 756 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
-used anywhere in the default path. M5's, M6's, M8's, and M9's tests execute committed,
-stdlib-only fixture scripts (plus a few written by the tests themselves) as child
-processes — local, harmless, and offline. The socket tests either construct a socket or
+used anywhere in the default path. M5's, M6's, M8's, M9's, and M11's tests execute
+committed, stdlib-only fixture scripts (plus a few written by the tests themselves) as
+child processes — local, harmless, and offline. M11's replay tests are the most expensive:
+they drive the whole pipeline over the eleven fixtures once. The socket tests either construct a socket or
 are refused before one exists; none of them connects to anything.
 
 Two tests are load-bearing on the wall clock: the CPU-limit test burns ~1 CPU-second

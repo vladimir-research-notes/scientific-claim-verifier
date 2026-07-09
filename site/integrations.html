@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Integrations — Scientific Claim Verifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">Scientific Claim Verifier</a>
+  <div class="tagline">Integrations — five export contracts, one strict reader, and a replay loop.</div>
+  <nav class="site">
+    <a href="index.html">Overview</a>
+    <a href="claim-schema.html">Claim schema</a>
+    <a href="artifact-bundles.html">Artifact bundles</a>
+    <a href="checks.html">Checks</a>
+    <a href="reproducibility.html">Reproducibility</a>
+    <a href="example-report.html">Example report</a>
+    <a href="results.html">Results</a>
+    <a href="milestones.html">Milestones</a>
+    <a href="integrations.html" class="active">Integrations</a>
+    <a href="limitations.html">Limitations</a>
+    <a href="safety.html">Safety</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+<main>
+  <h1>Integrations</h1>
+  <p class="lede">Five versioned export formats, each shaped for a consumer role, each derived
+  from artifacts this repository already produces — and one of them replays.</p>
+
+  <h2>What this is, and what it is not</h2>
+  <div class="callout">
+    <p><strong>No external schema was consulted.</strong> None of the five systems these formats
+    are named for was read, imported, or run. This repository therefore cannot claim, and does not
+    claim, <em>compatibility</em> with any of them.</p>
+    <p>What exists is five <strong>proposed contracts</strong>, one per consumer role. Each is
+    versioned, validated by a strict reader, and confined to one module of ~200 lines. If a named
+    repo wants different keys, the change is that module and a <code>format_version</code> bump;
+    no pipeline stage knows these formats exist. That containment is the deliverable, and it is
+    checked rather than asserted: a test parses every module under <code>integrations/</code> and
+    fails if it imports anything but the standard library, <code>pydantic</code>, and this
+    project.</p>
+  </div>
+
+  <h2>The five formats</h2>
+  <table>
+    <thead><tr><th><code>--format</code></th><th>Document</th><th>Consumer role</th><th>Reads</th></tr></thead>
+    <tbody>
+      <tr><td><code>runnable-tasks</code></td><td><code>scv.runnable-tasks</code></td><td>code-agent runtime</td><td><code>tasks/</code></td></tr>
+      <tr><td><code>evidence-records</code></td><td><code>scv.evidence-records</code></td><td>BioScientist OS</td><td>a run's traces</td></tr>
+      <tr><td><code>benchmark</code></td><td><code>scv.benchmark</code></td><td>BioAgentBench</td><td>a suite run (traces + gold)</td></tr>
+      <tr><td><code>metrics</code></td><td><code>scv.metrics</code></td><td>LLM regression / observability</td><td>a suite run (traces + gold)</td></tr>
+      <tr><td><code>episodes</code></td><td><code>scv.episodes</code></td><td>agent-control-bench</td><td>a suite run + <code>tasks/</code></td></tr>
+    </tbody>
+  </table>
+
+  <pre><code>claimverifier export --list                                   # the table above, live
+claimverifier export --format benchmark --schema              # JSON Schema, from the models
+claimverifier run-suite --out results/runs/                   # produce a run
+claimverifier export --format episodes --run results/runs/smoke_suite --out episodes.json
+claimverifier replay --episodes episodes.json                 # the import direction</code></pre>
+
+  <h2>Four properties, held by every format</h2>
+  <div class="grid">
+    <div class="card"><h3>A function of artifacts</h3><p>Nothing re-runs the pipeline. The traces are
+      the record, as Milestone 9 established for reports. A test deletes <code>tasks/</code> and shows
+      three formats are unaffected. <code>replay</code> is the one exception; it exists to re-run.</p></div>
+    <div class="card"><h3>Deterministic</h3><p>Canonical JSON — sorted keys, no wall clock, no RNG.
+      Exporting a run twice produces byte-identical files. A non-diffable export is useless to a
+      regression tool.</p></div>
+    <div class="card"><h3>Portable</h3><p>Every path is repo-relative; every trace is named by its
+      filename. A test walks every string of every document and fails on an absolute path.</p></div>
+    <div class="card"><h3>Self-describing</h3><p>The envelope states the format, the contract version,
+      the producer, and the trace schema. A later <em>major</em> version is refused, not parsed into a
+      plausible-looking object.</p></div>
+  </div>
+
+  <h2>The envelope</h2>
+  <pre><code>{
+  "format": "scv.benchmark",
+  "format_version": "1.0",
+  "producer": "scientific-claim-verifier",
+  "producer_version": "0.1.0",
+  "trace_schema_version": "1.3",
+  "payload": { ... }
+}</code></pre>
+  <p>Every payload record is a <code>pydantic</code> model with <code>extra="forbid"</code>. An
+  export is a contract, and the two ways a contract rots unnoticed are a consumer silently dropping
+  a field it does not recognise and a producer silently accepting one it never declared.
+  <code>--schema</code> derives the JSON Schema from the very models that write and validate the
+  document, so a published schema cannot drift from the code that honours it.</p>
+
+  <h2>One vocabulary, shared</h2>
+  <p>Three formats state a verdict. If each spelled it differently, a consumer joining two exports
+  would have to know all five formats to know they agreed. So <code>Verdict</code> lives once — and
+  is <strong>never</strong> flattened to a single score, in any export:</p>
+  <pre><code>{"support_label": "contradicted",
+ "reproduction_status": "not_applicable",
+ "failure_mode": "table_cell_mismatch",
+ "confidence": 1.0}</code></pre>
+  <p><code>confidence</code> is the share of a claim's checks that reached a verdict — not a
+  probability that the label is right. A <em>gold</em> verdict carries <code>confidence: null</code>,
+  because no pipeline computed it.</p>
+
+  <h2>scv.runnable-tasks — the trace contract</h2>
+  <p><code>docs/PLAN.md</code> asks this format to "export traces in a compatible JSONL shape". The
+  trace already <em>is</em> JSONL; what a consumer lacks is a written guarantee about it. The document
+  carries one — and every guarantee is re-derived from a real trace in the tests, because a guarantee
+  nobody checks is a comment.</p>
+  <pre><code>"guarantees": [
+  "one JSON object per line, UTF-8, newline-separated",
+  "object keys are sorted within every line",
+  "every line carries a contiguous `seq`, starting at 0",
+  "every line's `kind` is one of `event_kinds`",
+  "no value is read from the wall clock or an RNG",
+  "the bytes are identical across re-runs and across output directories"
+]</code></pre>
+  <p><code>expected.verdict</code> is the task's hand-authored gold outcome: the success criterion a
+  <em>runtime</em> checks, and something that must never be shown to a system asked to solve the
+  task. <code>--hide-gold</code> drops it.</p>
+
+  <h2>scv.evidence-records — the five channels, as five keys</h2>
+  <p>Not a verdict with a citation stapled to it. An evidence store cannot merge these without
+  noticing:</p>
+  <table>
+    <thead><tr><th>Key</th><th>Channel</th></tr></thead>
+    <tbody>
+      <tr><td><code>claim</code></td><td>the extracted claim, as typed fields</td></tr>
+      <tr><td><code>evidence</code></td><td>the supporting text, quoted, with its locator</td></tr>
+      <tr><td><code>checks</code></td><td>each computed check: value, expected, tolerance, status</td></tr>
+      <tr><td><code>verdict</code></td><td>the inference — three labels wide</td></tr>
+      <tr><td><code>unverifiable</code></td><td>what this verdict does <em>not</em> settle</td></tr>
+    </tbody>
+  </table>
+  <p><code>rules</code> sits beside them: the named inference step behind each verdict field, and the
+  <code>check_id</code>s it read. A store that keeps the rule can answer <em>why does this say
+  <code>contradicted</code>?</em> by lookup. One that keeps only the label cannot.</p>
+  <p>What is deliberately <em>not</em> exported is <code>VerificationCheck.inputs</code> — the
+  per-check debugging bag whose keys vary by check type and which, for <code>code_execution</code>,
+  holds captured stdout. A stable contract cannot carry a field whose shape is decided by whichever
+  check happened to write it, and an evidence store is the last place that should start holding
+  process output by accident. A test asserts the string <code>accuracy=0.80</code> — real stdout
+  from a fixture script — appears in no record.</p>
+
+  <h2>scv.benchmark — the metric is declared, not assumed</h2>
+  <p>A benchmark that ships records without declaring its metric is a spreadsheet. And the metric a
+  harness would reach for by default — label accuracy — is the wrong one here.</p>
+  <pre><code>{"protocol": "exact_match_per_field",
+ "primary_metric": "wrong_verdicts",       "primary_metric_direction": "lower_is_better",
+ "secondary_metric": "conservative_misses", "secondary_metric_direction": "lower_is_better",
+ "outcomes": ["match", "conservative_miss", "wrong_verdict"]}</code></pre>
+  <p>Over these fixtures the pipeline recovers <strong>10 of 11</strong> support labels, and its
+  single miss is a claim it <em>declined to decide</em>. A change that "fixed" that miss by guessing
+  would score 11/11 and have made the tool worse. So the primary metric is
+  <code>wrong_verdicts</code> — committal labels the task's own artifacts contradict — and over the
+  committed fixtures it is <strong>0</strong>. <strong>Do not sum the two.</strong> The export
+  computes each task's bucket with the <em>same</em> <code>TaskOutcome</code> object the suite gate
+  reads, not a re-implementation, so the two cannot come to different conclusions.</p>
+  <p>Predicted verdicts come from the traces; gold, the suite identity, and the gate come from
+  <code>summary.json</code> — a trace never carries gold, because gold is never an input to the run
+  that wrote it. The two are cross-checked, and a directory whose traces and summary
+  <strong>disagree is refused, not scored</strong>: it holds artifacts from more than one run, and
+  any number computed from it is a fiction.</p>
+
+  <h2>scv.metrics — a fixed key space</h2>
+  <p>The only property a metrics sink really needs from a producer is the one producers usually get
+  wrong. A run with no <code>contradicted</code> claim could plausibly omit
+  <code>support_contradicted</code>; then a diff against a run with two shows a key
+  <em>appearing</em>, and a tool that reads a missing key as "no data" reports nothing while one that
+  reads it as zero reports a regression. Both are guessing.</p>
+  <p>So the key space covers <strong>every value of every closed vocabulary</strong> — 6 support
+  labels, 8 reproduction statuses, 13 failure modes, 5 check statuses — and all 40 metrics are
+  emitted every time, zero-valued when unseen. It changes only when <code>format_version</code> does,
+  and a test enumerates the enums so a vocabulary cannot grow without this format saying so.</p>
+  <p><code>direction</code> is the other half: a regression tool cannot know that more
+  <code>checks_fail</code> is fine — a suite of contradicted claims <em>should</em> produce failing
+  checks — while more <code>wrong_verdicts</code> is not. Most counts are <code>neutral</code>; only
+  six declare a direction. A test drives the scenario the whole project is arranged to catch: a
+  conservative miss turning into a wrong verdict, with gold agreement unchanged. Accuracy calls it a
+  wash; <code>compare()</code> flags <code>wrong_verdicts</code>.</p>
+
+  <h2>scv.episodes — the import direction</h2>
+  <p>The one format where the contract stops being a shape and becomes a claim that can be false. An
+  episode pins the task and its file hash, every artifact of its bundle by content hash, the controls,
+  the recorded verdict, and the SHA-256 of the trace the run wrote.</p>
+  <pre><code>$ claimverifier replay --episodes episodes.json
+
+Episodes        : 11
+Gate            : verdict only
+
+  [ok   ] synthetic_data_passage   reproduced
+  [ok   ] negated_training_data    reproduced
+  [ok   ] contradicted_f1          reproduced
+  ... (8 more)
+
+Reproduced      : 11/11
+
+Result          : PASS</code></pre>
+  <table>
+    <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>reproduced</code></td><td>same inputs, same verdict</td></tr>
+      <tr><td><code>drifted</code></td><td>same inputs, <strong>different verdict</strong> — the pipeline changed</td></tr>
+      <tr><td><code>inputs_changed</code></td><td>a fixture, a paper, or the task file is not the bytes the episode recorded; no re-run is attempted</td></tr>
+      <tr><td><code>missing_task</code></td><td>the task file is gone</td></tr>
+    </tbody>
+  </table>
+  <p>Only <code>drifted</code> is a statement about the <em>pipeline</em>. Collapsing the other three
+  into "failed" would let an edited CSV read as a code regression — precisely the mistake a replay
+  harness exists to prevent. Each of the four is produced by <em>injecting</em> its cause in the
+  tests.</p>
+  <p><code>trace_digest_matches</code> is reported for every episode and gated only under
+  <code>--strict</code>: reword one <code>because</code> string and every trace's bytes change while
+  every verdict stands. Over the eleven committed fixtures replay is <code>reproduced</code> 11/11
+  <strong>and passes <code>--strict</code></strong> — the traces come back byte-identical.</p>
+
+  <div class="callout safety">
+    <p><strong>An honest gap.</strong> A trace records what the pipeline <em>computed</em>, not how an
+    operator <em>invoked</em> it, so a schema-1.3 trace records none of the four controls.
+    <code>execute</code> is recovered from a suite's <code>summary.json</code> and the export
+    <strong>refuses</strong> when the operator's declared <code>--no-execute</code> disagrees with it;
+    the other three are taken from the operator's flags. A wrongly declared control does not silently
+    lie — replaying it reports <code>drifted</code> and names the field — but it is an assumption, and
+    it is the one this milestone did not remove. Recording the controls in the trace (schema 1.4)
+    would.</p>
+  </div>
+
+  <h2>Honest limitations</h2>
+  <ul>
+    <li>No adapter was validated against any of the five named systems. "Compatible" in
+      <code>docs/PLAN.md</code> should be read as "shaped to be compatible with".</li>
+    <li><code>benchmark</code>, <code>metrics</code>, and <code>episodes</code> need a
+      <code>run-suite</code> run: gold outcomes, a suite identity, and a gate are not in a trace.
+      <code>evidence-records</code> needs only traces and works on an archived run.</li>
+    <li>The fixtures are eleven small synthetic tasks. Every number that leaves here is a fact about
+      this pipeline on those fixtures, not a benchmark result about scientific claim verification.</li>
+    <li><code>replay</code> runs the fixture scripts, inheriting the sandbox's honest scope:
+      controlled fixture execution, <strong>not</strong> an untrusted-code boundary. See
+      <a href="reproducibility.html">Reproducibility</a>.</li>
+  </ul>
+
+  <p>Full detail in <code>docs/INTEGRATIONS.md</code>; the roadmap entry that motivated this
+  milestone is on <a href="roadmap.html">Roadmap</a>.</p>
+</main>
+<footer class="site">scientific-claim-verifier — integration contracts.</footer>
+</body>
+</html>

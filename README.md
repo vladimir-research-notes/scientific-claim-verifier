@@ -16,17 +16,18 @@ is a small but real reproducibility tool and benchmark platform. See
 [`docs/PLAN.md`](docs/PLAN.md) for the full plan and
 [`site/`](site/index.html) for the project website.
 
-> **Build status:** Milestones 0–8 complete. The typed schema, the task format and its
+> **Build status:** Milestones 0–11 complete. The typed schema, the task format and its
 > validator, rule-based claim extraction, the evidence linker, the deterministic
-> verification checks, the reproducibility sandbox, scoring, and the offline smoke suite
-> are in place: a claim can be extracted, linked to the exact cell/column/script that
-> bears on it, checked against those artifacts, its script executed under a recorded
+> verification checks, the reproducibility sandbox, scoring, the offline smoke suite, the
+> trace-derived reports, the optional (disabled) LLM adapters, and the integration export
+> contracts are in place: a claim can be extracted, linked to the exact cell/column/script
+> that bears on it, checked against those artifacts, its script executed under a recorded
 > policy, and the whole thing scored into a support label, a reproduction status, and a
-> failure mode — with a JSONL trace at every step, and an auditable Markdown/HTML report
-> rendered back out of that trace. **Eleven tasks run end to end on a CPU in ~1.5 s with
-> zero wrong verdicts**, and all ten commands in the CLI contract are live. The remaining
-> subsystems are built milestone by milestone — see below. This README is upgraded to
-> portfolio quality in Milestone 12.
+> failure mode — with a JSONL trace at every step, an auditable Markdown/HTML report
+> rendered back out of that trace, and five versioned exports rendered out of the same
+> artifacts. **Eleven tasks run end to end on a CPU in ~1.5 s with zero wrong verdicts**,
+> all eleven replay to the verdict they recorded, and all twelve CLI commands are live.
+> This README is upgraded to portfolio quality in Milestone 12.
 
 ## Quickstart
 
@@ -45,6 +46,10 @@ python3 scripts/05_run_smoke_suite.py --out results/runs/   # or: claimverifier 
 
 # An auditable report per claim, rendered from the traces that run just wrote
 python3 scripts/04_generate_report.py --run results/runs/smoke_suite --out results/reports/
+
+# Export that run as replayable episodes, then replay them and gate on drift
+python3 scripts/07_export_integrations.py --format episodes --run results/runs/smoke_suite --out ep.json
+claimverifier replay --episodes ep.json
 ```
 
 ## Why not just summarize?
@@ -78,6 +83,8 @@ task (YAML/JSON)
   -> sandbox     temp dir · scrubbed env · timeout · rlimits · network guard · JSONL trace
   -> scoring     support label · reproducibility status · failure mode
   -> report      Markdown (+ optional HTML)  <-  JSONL trace
+  -> export      runnable-tasks · evidence-records · benchmark · metrics · episodes
+                                              <-  JSONL trace (+ replay)
 ```
 
 ## CLI
@@ -94,6 +101,8 @@ claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
 claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.yaml --out results/runs/
 claimverifier verify         --task tasks/ml_claims/synthetic_data_passage.yaml --out results/runs/
 claimverifier run-suite      --suite tasks/smoke_suite.yaml --out results/runs/
+claimverifier export        --format benchmark --run results/runs/smoke_suite
+claimverifier replay        --episodes ep.json
 ```
 
 `link-evidence` reports the ranked passage candidates, the emitted evidence links
@@ -160,6 +169,24 @@ every committed fixture, writes its trace, reads it back, and asserts the recons
 *equals* the original, because a trace that cannot be turned back into the verdict it
 recorded is not an audit record but a log. See [`docs/REPORTS.md`](docs/REPORTS.md).
 
+`export` writes a run in one of five versioned, self-describing formats — shaped for a
+code-agent runtime, an evidence store, a benchmark harness, an observability sink, and a
+replay bench. **No external schema was consulted**, so nothing here claims compatibility
+with any named project: each format is a proposed contract confined to one module, and a
+test parses every module in the package to prove it imports nothing but the standard
+library, `pydantic`, and this project. Like a report, an export is a function of committed
+artifacts — sorted-key JSON, no wall clock, no absolute paths, byte-identical across two
+exports and across two run directories.
+
+`replay` is the one verb that re-runs anything, and it is where a contract stops being a
+shape and becomes a claim that can be false. An `episodes` document pins the task file, each
+artifact by content hash, the controls, the recorded verdict, and the SHA-256 of the trace.
+Replay reports `reproduced`, `drifted`, `inputs_changed`, or `missing_task` — and only
+`drifted` is a statement about the *pipeline*, because an edited CSV must never read as a
+code regression. All eleven fixtures reproduce, byte-identical traces included (`--strict`).
+Each of the four statuses is *injected* in the tests, because a gate that never fails proves
+nothing when it passes. See [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+
 `run-checks` is deliberately not `verify`: it computes checks and stops, while `verify`
 draws the inference the checks are forbidden to draw.
 
@@ -220,13 +247,14 @@ overrides go in `.claude/settings.local.json` (gitignored).
 ```
 
 Pages: Overview, Claim schema, Artifact bundles, Checks, Reproducibility,
-Example report, Results, Milestones, Limitations, Safety, Roadmap.
+Example report, Results, Milestones, Integrations, Limitations, Safety, Roadmap.
 
 ## Repository layout
 
 ```
 src/scientific_claim_verifier/   package: artifacts, claims, evidence, checks,
-                                 sandbox, scoring, reports, adapters, cli, schemas
+                                 sandbox, scoring, reports, adapters, integrations,
+                                 cli, schemas
 tasks/                           verification tasks by family (YAML/JSON)
 data/fixtures/                   small synthetic/open papers, datasets, code, expected
 results/                         generated runs/reports/figures (mostly gitignored)

@@ -15,6 +15,8 @@ Commands online so far:
 - ``claimverifier verify``             — score a claim: support label + trace (M7).
 - ``claimverifier run-suite``          — run the offline smoke suite, gated (M8).
 - ``claimverifier report``             — render reports from a run's traces (M9).
+- ``claimverifier export``             — write a run in an integration contract (M11).
+- ``claimverifier replay``             — re-run recorded episodes and check for drift (M11).
 
 ``link-evidence``, ``run-checks``, and ``run-sandbox`` are additions beyond the
 ``docs/PLAN.md`` section 10 contract: that section lists the end-to-end verbs, but a
@@ -25,6 +27,10 @@ draws the inference the checks are forbidden to draw.
 ``report`` completes the section 10 contract. It reads the JSONL traces a ``verify`` or
 ``run-suite`` run left behind and renders them; it never re-runs the pipeline, so a report
 can be produced from an archived run whose artifacts are long gone.
+
+``export`` and ``replay`` are the two directions of Milestone 11's integration contracts.
+``export`` is a function of committed artifacts, exactly as ``report`` is; ``replay`` is
+the only verb that re-runs the pipeline to check that a recorded episode still holds.
 """
 
 from __future__ import annotations
@@ -35,6 +41,7 @@ from . import __version__, envcheck, suite
 from .artifacts import validation
 from .checks import verification
 from .claims import extraction, linking
+from .integrations import episodes, export
 from .reports import render
 from .sandbox import runner
 from .scoring import verdict
@@ -51,7 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Live commands: `check-env`, `version`, `validate-fixtures`, "
             "`extract-claims`, `link-evidence`, `run-checks`, `run-sandbox`, `verify`, "
-            "`run-suite`, `report` (see docs/PLAN.md)."
+            "`run-suite`, `report`, `export`, `replay` (see docs/PLAN.md)."
         ),
     )
     parser.add_argument(
@@ -122,6 +129,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render a Markdown (or HTML) report for each claim in a run, from its trace.",
     )
     render.add_report_arguments(report)
+
+    export_parser = subparsers.add_parser(
+        "export",
+        help="Export a run or the task set in one of the integration contracts (offline).",
+    )
+    export.add_export_arguments(export_parser)
+
+    replay_parser = subparsers.add_parser(
+        "replay",
+        help="Re-run recorded episodes and check the pipeline still agrees with them.",
+    )
+    episodes.add_replay_arguments(replay_parser)
 
     return parser
 
@@ -201,6 +220,16 @@ def main(argv: list[str] | None = None) -> int:
             out=args.out,
             fmt=args.format,
             index=not args.no_index,
+        )
+    if args.command == "export":
+        return export.dispatch(args)
+    if args.command == "replay":
+        return episodes.replay_and_report(
+            args.episodes,
+            repo_root=args.repo_root,
+            as_json=args.json,
+            strict=args.strict,
+            enforce_gate=not args.no_gate,
         )
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is

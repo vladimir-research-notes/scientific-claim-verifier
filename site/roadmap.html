@@ -19,6 +19,7 @@
     <a href="example-report.html">Example report</a>
     <a href="results.html">Results</a>
     <a href="milestones.html">Milestones</a>
+    <a href="integrations.html">Integrations</a>
     <a href="limitations.html">Limitations</a>
     <a href="safety.html">Safety</a>
     <a href="roadmap.html" class="active">Roadmap</a>
@@ -29,15 +30,18 @@
   <p class="lede">Directions beyond the initial milestones — deliberately modest and honest.
   Nothing here requires paid APIs or GPUs.</p>
 
-  <h2>Integration contracts (Milestone 11)</h2>
-  <p>Rather than depending on sibling projects, this repo defines compatible import/export
-  formats so it can plug into them later:</p>
+  <h2>Integration contracts (Milestone 11 — built)</h2>
+  <p>Rather than depending on sibling projects, this repo defines its own export contracts so it can
+  plug into them later. All five are live behind <code>claimverifier export</code>; see
+  <a href="integrations.html">Integrations</a>. <strong>No external schema was consulted</strong>, so
+  these are contracts shaped for a consumer <em>role</em>, not adapters validated against those
+  projects.</p>
   <div class="grid">
-    <div class="card"><h3>code-agent runtime</h3><p>Consume a verification task as a runnable task; export traces in a compatible JSONL shape.</p></div>
-    <div class="card"><h3>BioScientist OS</h3><p>Accept artifact bundles and emit verification results as structured evidence records.</p></div>
-    <div class="card"><h3>BioAgentBench</h3><p>Expose the smoke suite (11 tasks, <code>summary.csv</code> / <code>summary.json</code> since Milestone 8) as a benchmark with per-task scoring compatible with a harness.</p></div>
-    <div class="card"><h3>LLM regression / observability</h3><p>Emit per-run metrics and labels for regression comparison across versions.</p></div>
-    <div class="card"><h3>agent-control-bench</h3><p>Provide claim-verification episodes as controllable, replayable units.</p></div>
+    <div class="card"><h3>code-agent runtime</h3><p><code>runnable-tasks</code>: each task as <code>argv</code> plus hashed input files and a success criterion, and a written guarantee about the JSONL trace shape.</p></div>
+    <div class="card"><h3>BioScientist OS</h3><p><code>evidence-records</code>: each verification as a structured record with the five audit channels as five sibling keys.</p></div>
+    <div class="card"><h3>BioAgentBench</h3><p><code>benchmark</code>: the smoke suite (11 tasks) with per-task predicted-vs-gold scoring, and a <em>declared</em> primary metric — <code>wrong_verdicts</code>, lower is better.</p></div>
+    <div class="card"><h3>LLM regression / observability</h3><p><code>metrics</code>: per-run scalars and labels over a fixed key space, plus a reference <code>compare()</code> that flags only real regressions.</p></div>
+    <div class="card"><h3>agent-control-bench</h3><p><code>episodes</code>: claim verifications as controllable, replayable units — <code>claimverifier replay</code> re-runs all eleven and reproduces every verdict.</p></div>
   </div>
 
   <h2>Method directions</h2>

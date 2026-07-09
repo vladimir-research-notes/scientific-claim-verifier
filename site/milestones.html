@@ -19,6 +19,7 @@
     <a href="example-report.html">Example report</a>
     <a href="results.html">Results</a>
     <a href="milestones.html" class="active">Milestones</a>
+    <a href="integrations.html">Integrations</a>
     <a href="limitations.html">Limitations</a>
     <a href="safety.html">Safety</a>
     <a href="roadmap.html">Roadmap</a>
@@ -30,7 +31,7 @@
   <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
   run, each committed locally with docs and website updated. Guards between milestones require a
   new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
-  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0–M10 complete</span> &nbsp; <span class="status planned">Milestones 11–13 pending</span></p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0–M11 complete</span> &nbsp; <span class="status planned">Milestones 12–13 pending</span></p>
 
   <h2>Bootstrap (done)</h2>
   <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
@@ -234,10 +235,34 @@
   <span class="pill ok">1 paid adapter, shipped disabled</span>
   <span class="pill ok">no HTTP client imported</span> <span class="pill ok">ruff clean</span></p>
 
-  <h3>M11 — Integration contracts <span class="pill">planned</span></h3>
-  <p>Compatible import/export formats for the code-agent runtime, BioScientist OS,
-  BioAgentBench, LLM regression/observability, and agent-control-bench — without depending on
-  those repos.</p>
+  <h3>M11 — Integration contracts <span class="pill ok">done</span></h3>
+  <p>An <code>integrations/</code> package: five versioned, self-describing export formats, one per
+  consumer role — <code>runnable-tasks</code> (code-agent runtime), <code>evidence-records</code>
+  (BioScientist OS), <code>benchmark</code> (BioAgentBench), <code>metrics</code> (LLM
+  regression/observability), and <code>episodes</code> (agent-control-bench) — reachable via
+  <code>claimverifier export</code>. <strong>No external schema was consulted</strong>: none of those
+  five systems was read, imported, or run, so nothing here claims compatibility with any of them.
+  What is claimed is containment, and it is checked rather than asserted — a test parses every module
+  in the package and fails if it imports anything but the standard library, <code>pydantic</code>,
+  and this project.</p>
+  <p>Like a Milestone 9 report, an export is a <strong>function of committed artifacts</strong>:
+  canonical JSON, no wall clock, no absolute path, byte-identical across two exports and across two
+  run directories. <code>benchmark</code> declares its metric rather than leaving a harness to guess
+  — <code>wrong_verdicts</code>, lower is better, <em>not</em> accuracy — and computes each task's
+  bucket with the same <code>TaskOutcome</code> object the suite gate reads, so the export and the
+  gate cannot diverge. A run whose <code>summary.json</code> and traces disagree is refused rather
+  than scored. <code>metrics</code> emits all 40 metrics every time, zero-valued when unseen, because
+  a key that appears between two runs is a key a diff tool must guess about.</p>
+  <p><code>episodes</code> is the import direction, and where a contract stops being a shape and
+  becomes a claim that can be false. <code>claimverifier replay</code> re-runs each episode under its
+  recorded controls and reports <code>reproduced</code>, <code>drifted</code>,
+  <code>inputs_changed</code>, or <code>missing_task</code> — only the second is a statement about the
+  pipeline, because an edited CSV must never read as a code regression. Each of the four is produced
+  by <em>injecting</em> its cause in the tests. Documented in <code>docs/INTEGRATIONS.md</code> and on
+  <a href="integrations.html">Integrations</a>.
+  <span class="pill ok">86 new tests</span> <span class="pill ok">756 total</span>
+  <span class="pill ok">11/11 episodes replay, --strict</span>
+  <span class="pill ok">no external import</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M12 — Portfolio report <span class="pill">planned</span></h3>
   <p>README and docs to portfolio quality: problem, architecture, worked example, smoke-suite

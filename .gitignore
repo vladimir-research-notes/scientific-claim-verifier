@@ -58,6 +58,7 @@ results/cache/
 # Generated run artifacts. Small, curated example runs/reports may be
 # force-added by a milestone; everything else stays out of git.
 results/runs/
+results/exports/
 results/processed/
 results/figures/
 results/reports/

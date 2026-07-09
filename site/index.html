@@ -19,6 +19,7 @@
     <a href="example-report.html">Example report</a>
     <a href="results.html">Results</a>
     <a href="milestones.html">Milestones</a>
+    <a href="integrations.html">Integrations</a>
     <a href="limitations.html">Limitations</a>
     <a href="safety.html">Safety</a>
     <a href="roadmap.html">Roadmap</a>
@@ -31,7 +32,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 10 complete — optional LLM adapters, disabled by default</span> &nbsp; <span class="status planned">Milestone 11 next: integration contracts</span></p>
+  <p><span class="status done">status: Milestone 11 complete — integration contracts, no external dependency</span> &nbsp; <span class="status planned">Milestone 12 next: portfolio report</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -71,7 +72,7 @@
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). All ten commands are live, and the CLI contract in
+  <code>pyyaml</code>). All twelve commands are live, and the CLI contract in
   <code>docs/PLAN.md</code> §10 is complete.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
@@ -84,6 +85,8 @@ claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.y
 claimverifier verify         --task tasks/ml_claims/underspecified_split.yaml
 claimverifier run-suite      --out results/runs/   # all 11 tasks, offline, ~1.5 s
 claimverifier report         --run results/runs/smoke_suite --out results/reports/
+claimverifier export         --format episodes --run results/runs/smoke_suite --out ep.json
+claimverifier replay         --episodes ep.json   # re-runs each episode; gates on drift
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
   <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
   the task's gold target — the audit trail is the product, not a side effect:</p>
@@ -245,6 +248,32 @@ wrote 12 file(s) for 11 claim(s) from results/runs/smoke_suite</code></pre>
   and signals. A trace that cannot be turned back into the verdict it recorded is not an audit
   record — it is a log. See the <a href="example-report.html">Example report</a>.</p>
 
+  <h2>Exports are contracts, and one of them replays</h2>
+  <p><code>claimverifier export</code> writes a run in one of five versioned, self-describing formats
+  — shaped for a code-agent runtime, an evidence store, a benchmark harness, an observability sink,
+  and a replay bench. <strong>No external schema was consulted</strong>, so nothing here claims
+  compatibility with any named project; each format is a proposed contract confined to one module,
+  and a test parses every module in the package to prove it imports nothing but the standard library,
+  <code>pydantic</code>, and this project.</p>
+  <p>Like a report, an export is a <em>function of committed artifacts</em>: sorted-key JSON, no wall
+  clock, no absolute paths, byte-identical across two runs. The one verb that re-runs anything is
+  <code>replay</code>, which is where the contract stops being a shape and becomes a claim that can
+  be false:</p>
+  <pre><code>$ claimverifier export --format episodes --run results/runs/smoke_suite --out ep.json
+$ claimverifier replay --episodes ep.json
+
+  [ok   ] contradicted_f1          reproduced
+  ... (10 more)
+
+Reproduced      : 11/11
+Result          : PASS</code></pre>
+  <p>An episode pins the task file, every artifact by content hash, the controls, the recorded
+  verdict, and the SHA-256 of the trace. Replay reports <code>reproduced</code>,
+  <code>drifted</code>, <code>inputs_changed</code>, or <code>missing_task</code> — and only
+  <code>drifted</code> is a statement about the pipeline, because an edited CSV must never read as a
+  code regression. All eleven fixtures reproduce, byte-identical traces included. See
+  <a href="integrations.html">Integrations</a>.</p>
+
   <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
   the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>
 
@@ -269,6 +298,7 @@ wrote 12 file(s) for 11 claim(s) from results/runs/smoke_suite</code></pre>
     <li><a href="artifact-bundles.html">Artifact bundles</a> — how papers, datasets, and code are packaged.</li>
     <li><a href="checks.html">Checks</a> — the deterministic verification checks.</li>
     <li><a href="reproducibility.html">Reproducibility</a> — the reproduction status vocabulary.</li>
+    <li><a href="integrations.html">Integrations</a> — the five export contracts and the replay loop.</li>
     <li><a href="milestones.html">Milestones</a> — the full build plan, milestone by milestone.</li>
   </ul>
 </main>
