@@ -229,6 +229,21 @@ any tolerance in play, so rounding can never flip a verdict. Checks are emitted 
 fixed type order, and `check_id`s are numbered per type
 (`c_dataset_mean.dataset_statistic.2`).
 
+## `error_kind`: why the check could not run
+
+Every `error` check records a closed-vocabulary cause in `inputs.error_kind`
+(`checks.ErrorKind`), added in Milestone 7:
+
+`dangling_link` · `missing_passage` · `missing_data` · `unreadable_data` ·
+`missing_code` · `sandbox_failure` · `execution_timeout` · `nonzero_exit` ·
+`missing_column` · `missing_row` · `non_numeric_cell` · `empty_column`
+
+Scoring maps these onto reproduction statuses and failure modes with a table lookup —
+"the script is missing" and "the sandbox broke" are different outcomes, and
+distinguishing them by matching English in `notes` would not be a contract. A check's
+`notes` remain the human explanation; `error_kind` is the machine one. A check that did
+not error records no `error_kind`.
+
 ## Not implemented, and why
 
 - **`figure_recompute`.** `CheckType.FIGURE_RECOMPUTE` exists and `evidence/figures.py`
@@ -237,7 +252,8 @@ fixed type order, and `check_id`s are numbered per type
   table or figure from a dataset (task family 3) is untouched work, not a silent gap.
 - **`correlation`.** In scope per `docs/PLAN.md` §3, but it needs a two-column
   locator that the locator grammar does not express and no fixture exercises.
-- **A support label.** Milestone 7.
+- **A support label.** Still not here — and that is the point. The inference is drawn
+  from the whole set of checks by scoring (`docs/SCORING.md`, `claimverifier verify`).
 
 ## The locator grammar
 

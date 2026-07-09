@@ -30,7 +30,7 @@
   <code>scripts/run_all_milestones_with_claude.sh</code>: one milestone per <code>claude -p</code>
   run, each committed locally with docs and website updated. Guards between milestones require a
   new commit, a clean tree, passing tests, and (once present) valid fixtures.</p>
-  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status done">M2 complete</span> &nbsp; <span class="status done">M3 complete</span> &nbsp; <span class="status done">M4 complete</span> &nbsp; <span class="status done">M5 complete</span> &nbsp; <span class="status done">M6 complete</span> &nbsp; <span class="status planned">Milestones 7–13 pending</span></p>
+  <p><span class="status done">bootstrap complete</span> &nbsp; <span class="status done">M0 complete</span> &nbsp; <span class="status done">M1 complete</span> &nbsp; <span class="status done">M2 complete</span> &nbsp; <span class="status done">M3 complete</span> &nbsp; <span class="status done">M4 complete</span> &nbsp; <span class="status done">M5 complete</span> &nbsp; <span class="status done">M6 complete</span> &nbsp; <span class="status done">M7 complete</span> &nbsp; <span class="status planned">Milestones 8–13 pending</span></p>
 
   <h2>Bootstrap (done)</h2>
   <p>The orchestration and contract layer: this website, <code>CLAUDE.md</code>,
@@ -146,9 +146,29 @@
   <span class="pill ok">2/2 code fixtures reproduce</span>
   <span class="pill ok">byte-identical traces</span> <span class="pill ok">ruff clean</span></p>
 
-  <h3>M7 — Scoring &amp; failure modes <span class="pill">planned</span></h3>
-  <p>Support-label assignment, reproducibility-status assignment, failure-mode classification,
-  aggregate summary, and per-claim result objects.</p>
+  <h3>M7 — Scoring &amp; failure modes <span class="pill ok">done</span></h3>
+  <p>The <code>scoring/</code> package is the one stage allowed to draw an inference. It reduces
+  each check to what it says about the <em>claim</em> — because a check's <code>status</code> is a
+  fact about the check, and one status means more than one thing: an evidence check
+  <code>fail</code>s both when the passage <strong>negates</strong> the claim (refutes it) and when
+  it never mentions it (<strong>silence is not refutation</strong>); a table check
+  <code>pass</code>es both when the value is in the cell the claim named (supports) and when it
+  merely appears <em>somewhere</em> in a column the claim never disambiguated (<strong>ambiguous →
+  <code>underspecified</code></strong>); and a script exiting 0 with nothing declared to match is not
+  evidence for any number. Five ordered rules then assign the support label, and
+  <strong>each rule is recorded by name with the check IDs it read</strong>, into the report and the
+  JSONL trace. Reading a table cell is a lookup, not a reproduction, so table claims are
+  <code>not_applicable</code> rather than inflated into reproduced results. A new
+  <code>evidence_undecidable</code> failure mode (schema 1.2) gives M5's <code>inconclusive</code>
+  status somewhere honest to land: recording <code>passage_does_not_assert</code> there would
+  publish the checker's ignorance as a fact about the paper. Over the seven fixtures: 6/7 support
+  labels, 7/7 reproduction statuses, and — the number that matters — <strong>0 wrong
+  verdicts</strong>, its single miss being a refusal to decide. Reachable via
+  <code>claimverifier verify</code>; documented in <code>docs/SCORING.md</code>, with measured
+  results on <a href="results.html">Results</a>.
+  <span class="pill ok">106 new tests</span> <span class="pill ok">452 total</span>
+  <span class="pill ok">0 wrong verdicts</span> <span class="pill">1 conservative miss</span>
+  <span class="pill ok">byte-identical traces</span> <span class="pill ok">ruff clean</span></p>
 
   <h3>M8 — Smoke suite <span class="pill">planned</span></h3>
   <p>8–15 verification tasks run fully offline; saved run traces, results, a summary CSV/JSON,

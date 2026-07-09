@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import StrEnum
 
 from ..claims.extraction import extract_numbers
 
@@ -61,6 +62,30 @@ from ..schemas import CheckType, ComparisonOperator, ScientificClaim
 # ``40.8 / 12 = 3.4000000000000004`` is written as ``3.4``. Well below every
 # tolerance the checks apply, so rounding can never flip a verdict.
 STABLE_DIGITS = 12
+
+
+class ErrorKind(StrEnum):
+    """Why a check reported ``error``, as a closed vocabulary rather than prose.
+
+    Every ``error`` check records one of these in ``inputs["error_kind"]``. Scoring
+    (Milestone 7) maps them onto reproduction statuses and failure modes, so *"the
+    dataset file is missing"* and *"the column is not numeric"* can be told apart by
+    a table lookup instead of by matching English in ``notes``. A check's ``notes``
+    remain the human explanation; this is the machine one.
+    """
+
+    DANGLING_LINK = "dangling_link"  # the evidence link resolves to no artifact
+    MISSING_PASSAGE = "missing_passage"  # a passage link pointing at no passage
+    MISSING_DATA = "missing_data"  # dataset declares no path, or the file is absent
+    UNREADABLE_DATA = "unreadable_data"  # column absent, non-numeric, or statistic undefined
+    MISSING_CODE = "missing_code"  # code declares no path, or the script is absent
+    SANDBOX_FAILURE = "sandbox_failure"  # the sandbox could not enforce its own policy
+    EXECUTION_TIMEOUT = "execution_timeout"  # the script exceeded its wall-clock timeout
+    NONZERO_EXIT = "nonzero_exit"  # the script ran and exited non-zero
+    MISSING_COLUMN = "missing_column"  # the locator names a column the table lacks
+    MISSING_ROW = "missing_row"  # the locator names a row the table lacks
+    NON_NUMERIC_CELL = "non_numeric_cell"  # the located cell is absent or not a number
+    EMPTY_COLUMN = "empty_column"  # the located column holds no numeric cell
 
 
 @dataclass(frozen=True)
@@ -190,6 +215,7 @@ def check_id(claim_id: str, check_type: CheckType, ordinal: int = 1) -> str:
 __all__ = [
     "STABLE_DIGITS",
     "MAX_CAPTURE_CHARS",
+    "ErrorKind",
     "Tolerance",
     "EXACT",
     "FLOAT_NOISE",

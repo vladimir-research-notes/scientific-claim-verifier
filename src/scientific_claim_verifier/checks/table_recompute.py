@@ -44,7 +44,7 @@ from ..schemas import (
     Table,
     VerificationCheck,
 )
-from . import Tolerance, compare, resolve_tolerance, stable
+from . import ErrorKind, Tolerance, compare, resolve_tolerance, stable
 
 _CHECK_TYPE = CheckType.TABLE_VALUE
 
@@ -158,7 +158,7 @@ def table_value_check(
             claim,
             CheckStatus.ERROR,
             link,
-            inputs,
+            inputs | {"error_kind": ErrorKind.MISSING_COLUMN.value},
             f"column {locator.col!r} is not in table {table.table_id!r}",
         )
 
@@ -199,7 +199,12 @@ def _cell_check(
     position = row_index(table, row)
     if position is None:
         return _check(
-            check_id, claim, CheckStatus.ERROR, link, inputs, f"row {row!r} is not in the table"
+            check_id,
+            claim,
+            CheckStatus.ERROR,
+            link,
+            inputs | {"error_kind": ErrorKind.MISSING_ROW.value},
+            f"row {row!r} is not in the table",
         )
 
     cell = _as_number(cell_at(table, position, index))
@@ -209,7 +214,7 @@ def _cell_check(
             claim,
             CheckStatus.ERROR,
             link,
-            inputs,
+            inputs | {"error_kind": ErrorKind.NON_NUMERIC_CELL.value},
             f"cell row={row},col={column} is absent or not numeric",
         )
 
@@ -261,7 +266,7 @@ def _column_check(
             claim,
             CheckStatus.ERROR,
             link,
-            inputs,
+            inputs | {"error_kind": ErrorKind.EMPTY_COLUMN.value},
             f"column {column!r} holds no numeric cells",
         )
 

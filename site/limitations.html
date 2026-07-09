@@ -54,7 +54,24 @@
   representative of real papers at scale, and results should not be read as a benchmark
   leaderboard. The locator conventions and the table row rule were written with the committed table
   fixtures in view, so a perfect linking score is a consistency check, not evidence that retrieval
-  is solved.</p>
+  is solved. The scoring rules were likewise written alongside the gold outcomes they are measured
+  against: 6/7 support labels is a <strong>regression harness</strong>, not a benchmark result.</p>
+
+  <h2><code>confidence</code> is not a probability</h2>
+  <p><code>VerificationResult.confidence</code> is the share of a claim's checks that reached a
+  pass/fail verdict — <em>decidedness</em>. It is not calibrated against anything, and it does not
+  estimate the chance that the label is correct. Producing a calibrated number would need labelled
+  data this project does not have. A claim whose only check is <code>inconclusive</code> scores
+  <code>0.00</code>, however confident its label sounds.</p>
+
+  <h2>Scoring is per-claim, and its rules are coarse in places</h2>
+  <p>Each claim is scored independently; the pipeline never asks whether two claims in one bundle
+  contradict each other. Two failure-mode mappings lose information, both deliberately: a
+  <code>comparison</code> check failing (the asserted <em>relation</em> does not hold) is recorded as
+  <code>numeric_out_of_tolerance</code>, and a <code>code_execution</code> check failing (the script
+  ran but printed the wrong text) is recorded as <code>other</code>, since the declared expectation
+  may be arbitrary text and the script executed fine. Both are named in
+  <code>docs/SCORING.md</code> rather than hidden.</p>
 
   <h2>The sandbox is not a security boundary</h2>
   <div class="callout warn">The code-execution layer runs <strong>tiny, trusted fixture

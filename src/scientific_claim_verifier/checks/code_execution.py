@@ -56,7 +56,7 @@ from ..schemas import (
     ScientificClaim,
     VerificationCheck,
 )
-from . import truncate
+from . import ErrorKind, truncate
 
 # A metric line as the fixture scripts print it: ``accuracy=0.80``.
 _METRIC_LINE_RE = re.compile(r"^\s*([A-Za-z_][\w.]*)\s*=\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE)
@@ -105,6 +105,10 @@ def code_execution_check(
     """
     active = runner or SandboxScriptRunner()
     timeout = artifact.timeout_seconds or DEFAULT_TIMEOUT_SECONDS
+    # Recorded up front so every outcome — including `skipped` — says what the bundle
+    # asked this script to print. An execution that verified *nothing* is not evidence
+    # for the claim, and scoring reads this to tell that case apart from a real match.
+    declared = stdout_expectations(expected_outputs)
     inputs: dict = {
         "code_id": artifact.artifact_id,
         "path": artifact.path,
@@ -113,6 +117,7 @@ def code_execution_check(
         "timeout_seconds": timeout,
         "content_hash": artifact.content_hash,
         "runner": active.name,
+        "declared_expectations": declared,
     }
 
     def outcome(status: CheckStatus, notes: str, **fields: object) -> VerificationCheck:
@@ -127,6 +132,10 @@ def code_execution_check(
             **fields,  # type: ignore[arg-type]
         )
 
+    def failed(kind: ErrorKind, notes: str, **fields: object) -> VerificationCheck:
+        inputs["error_kind"] = kind.value
+        return outcome(CheckStatus.ERROR, notes, **fields)
+
     if not execute:
         return outcome(CheckStatus.SKIPPED, "execution disabled (--no-execute); script not run")
     if artifact.language != "python":
@@ -134,21 +143,23 @@ def code_execution_check(
             CheckStatus.SKIPPED, f"no runner for language {artifact.language!r}; script not run"
         )
     if artifact.path is None:
-        return outcome(CheckStatus.ERROR, f"code artifact {artifact.artifact_id!r} has no path")
+        return failed(
+            ErrorKind.MISSING_CODE, f"code artifact {artifact.artifact_id!r} has no path"
+        )
 
     try:
         script = loader.resolve_fixture_path(artifact.path, repo_root)
     except loader.TaskLoadError as exc:
-        return outcome(CheckStatus.ERROR, str(exc))
+        return failed(ErrorKind.MISSING_CODE, str(exc))
     if not script.is_file():
-        return outcome(CheckStatus.ERROR, f"script not found: {artifact.path}")
+        return failed(ErrorKind.MISSING_CODE, f"script not found: {artifact.path}")
 
     try:
         result = active.run(script, timeout)
     except SandboxError as exc:
         # The sandbox could not enforce the policy it promised. Reporting the script's
         # output anyway would attribute a number to conditions that never held.
-        return outcome(CheckStatus.ERROR, f"sandbox failed: {exc}")
+        return failed(ErrorKind.SANDBOX_FAILURE, f"sandbox failed: {exc}")
 
     inputs |= {
         "command": list(result.command),
@@ -165,10 +176,12 @@ def code_execution_check(
         tainted = f"; the sandbox denied network access to {', '.join(result.network_attempts)}"
 
     if result.timed_out:
-        return outcome(CheckStatus.ERROR, f"script timed out after {timeout:g}s{tainted}")
+        return failed(
+            ErrorKind.EXECUTION_TIMEOUT, f"script timed out after {timeout:g}s{tainted}"
+        )
     if not result.ok:
-        return outcome(
-            CheckStatus.ERROR,
+        return failed(
+            ErrorKind.NONZERO_EXIT,
             f"script exited {result.exit_code}; no observable was produced "
             f"(stderr: {truncate(result.stderr.strip(), 200) or 'empty'}){tainted}",
         )
@@ -178,7 +191,7 @@ def code_execution_check(
     if observable:
         inputs["observable"] = observable[0]
 
-    missing = [text for text in stdout_expectations(expected_outputs) if text not in result.stdout]
+    missing = [text for text in declared if text not in result.stdout]
     if missing:
         return outcome(
             CheckStatus.FAIL,
@@ -186,7 +199,6 @@ def code_execution_check(
             computed_value=computed,
         )
 
-    declared = stdout_expectations(expected_outputs)
     return outcome(
         CheckStatus.PASS,
         f"script exited 0 and printed the declared observable"

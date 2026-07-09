@@ -29,7 +29,76 @@
   <p class="lede">This page reports measured outcomes. Every number is reproducible offline on a
   single CPU with the command shown beside it. Numbers that do not exist yet are marked pending,
   never estimated.</p>
-  <p><span class="status done">status: Milestones 3–6 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+  <p><span class="status done">status: Milestones 3–7 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+
+  <h2>Support labels &amp; failure modes (Milestone 7)</h2>
+  <pre><code>python3 -m pytest tests/test_scoring.py -q       # 100 tests
+claimverifier verify --task &lt;task.yaml&gt;          # per-task verdict + trace</code></pre>
+  <p>The verdict the pipeline draws for each committed fixture, beside the gold outcome the task
+  file declares. No LLM judges anything: each label is assigned by a named rule over the Milestone 5
+  checks, and the rule is recorded in the trace.</p>
+  <table>
+    <tr><th>Task</th><th>Support label</th><th>Reproduction</th><th>Failure mode</th><th>vs. gold</th></tr>
+    <tr><td><code>accuracy_improvement</code></td><td><span class="pill ok">supported</span></td><td>not_applicable</td><td>none</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>contradicted_f1</code></td><td><span class="pill bad">contradicted</span></td><td>not_applicable</td><td>table_cell_mismatch</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>dataset_mean</code></td><td><span class="pill ok">supported</span></td><td><span class="pill ok">reproduced</span></td><td>none</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>gc_content</code></td><td><span class="pill ok">supported</span></td><td><span class="pill ok">reproduced</span></td><td>none</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>recompute_accuracy</code></td><td><span class="pill ok">supported</span></td><td><span class="pill ok">reproduced</span></td><td>none</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>underspecified_split</code></td><td><span class="pill warn">underspecified</span></td><td>not_applicable</td><td>underspecified</td><td>✓ ✓ ✓</td></tr>
+    <tr><td><code>synthetic_data_passage</code></td><td><span class="pill">unverifiable_from_artifacts</span></td><td>not_applicable</td><td>evidence_undecidable</td><td>✗ ✓ ✗</td></tr>
+  </table>
+  <table>
+    <tr><th>Agreement with gold</th><th>Score</th></tr>
+    <tr><td><code>support_label</code></td><td>6/7</td></tr>
+    <tr><td><code>reproduction_status</code></td><td>7/7</td></tr>
+    <tr><td><code>failure_mode</code></td><td>6/7</td></tr>
+    <tr><td><strong>Wrong verdicts</strong></td><td><span class="pill ok">0/7</span></td></tr>
+    <tr><td>Conservative misses</td><td><span class="pill">1/7 — <code>synthetic_data_passage</code></span></td></tr>
+  </table>
+
+  <h3>The only number that matters here</h3>
+  <p><strong>Wrong verdicts: 0.</strong> A mismatch is bucketed by kind, because a single accuracy
+  number hides the difference between a system that says the wrong thing and one that declines to
+  say anything. A <em>conservative miss</em> predicts a non-committal label where gold commits — the
+  system declined to decide, and asserted nothing false. A <em>wrong verdict</em> asserts a committal
+  label gold disagrees with.</p>
+  <p>The pipeline's single miss is <code>synthetic_data_passage</code>, and it is conservative. Gold
+  says <code>supported</code>, and the passage really does support the claim. But <em>"The model is
+  trained <strong>only</strong> on synthetic data"</em> is asserted by <em>"All experiments use
+  synthetic data …; no real corpora were used at any stage of <strong>training</strong>"</em> — a
+  paraphrase at 40% token coverage. The lexical evidence check returns <code>inconclusive</code>,
+  scoring maps that to <code>unverifiable_from_artifacts</code> with failure mode
+  <code>evidence_undecidable</code>, and <code>confidence</code> reads <code>0.00</code>: nothing
+  about this claim was decided, and the report says so.</p>
+  <div class="callout">This is the honest cost of a transparent method, and
+  <code>wrong_verdicts</code> is the number to watch: <strong>a change to the extractor, the linker,
+  or the checks that raises label accuracy by turning a conservative miss into a wrong verdict has
+  made the tool worse.</strong></div>
+
+  <h3>Same locator, opposite label</h3>
+  <p>Two fixtures link the same locator shape and get opposite labels, from the same rule table, on
+  the strength of what the checks recorded in <code>inputs</code>:</p>
+  <table>
+    <tr><th>Fixture</th><th><code>table_value</code></th><th><code>matching_rows</code></th><th>Signal</th><th>Label</th></tr>
+    <tr><td><code>underspecified_split</code></td><td><span class="pill ok">pass</span></td><td><code>["dev"]</code> of 2 rows</td><td>ambiguous</td><td>underspecified</td></tr>
+    <tr><td><code>contradicted_f1</code></td><td><span class="pill bad">fail</span></td><td><code>[]</code> of 2 rows</td><td>refutes</td><td>contradicted</td></tr>
+  </table>
+  <p>And <code>contradicted_f1</code> keeps both channels visible: its <code>evidence_presence</code>
+  check <strong>passes</strong> (the abstract asserts the claim verbatim) while its
+  <code>table_value</code> check <strong>fails</strong> (the table says 86.0). The label is
+  <code>contradicted</code>, and the report still shows the passage that asserts it.</p>
+
+  <h3>How to read this</h3>
+  <p><strong>A regression harness, not a benchmark.</strong> Seven hand-authored synthetic fixtures,
+  whose gold outcomes were written alongside the rules that score them. 6/7 does not mean scientific
+  claim verification is 86% solved. What the table shows is that the rule table is coherent (no
+  fixture needs a special case), that it never asserts a verdict gold contradicts, and that the one
+  claim its methods cannot read is <em>reported as unread</em> rather than guessed at.
+  <code>reproduction_status</code> is 7/7 because the three reproducing fixtures reproduce
+  <em>exactly</em>, and the four table and passage claims correctly get <code>not_applicable</code>:
+  reading a value out of a table cell is a lookup, not a reproduction. Traces are byte-identical
+  across runs, including for the two fixtures whose scripts actually execute. See
+  <code>docs/SCORING.md</code>.</p>
 
   <h2>Sandbox reproduction (Milestone 6)</h2>
   <pre><code>python3 -m pytest tests/test_sandbox.py -q            # 61 tests
@@ -218,6 +287,7 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td>M4</td><td>69</td><td>171</td></tr>
     <tr><td>M5</td><td>114</td><td>285</td></tr>
     <tr><td>M6</td><td>61</td><td>346</td></tr>
+    <tr><td>M7</td><td>106</td><td>452</td></tr>
   </table>
   <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
   anywhere in the default path. Milestones 5 and 6 execute committed, stdlib-only fixture scripts
@@ -225,30 +295,44 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
   The socket tests either construct a socket or are refused before one exists; none connects to
   anything. <code>ruff check .</code> passes.</p>
 
-  <h2>Smoke suite (pending)</h2>
-  <p>The smoke suite will contain 8–15 verification tasks across the task families and run
-  fully offline on a single CPU. Until Milestone 8 runs it, the tables below are placeholders.</p>
+  <h2>Verdict distributions (7 committed fixtures)</h2>
+  <p>Measured over the seven committed tasks by <code>claimverifier verify</code>. The smoke suite
+  (Milestone 8) widens this to 8–15 tasks and generates reports from the traces.</p>
 
   <h3>Support-label distribution</h3>
   <table>
     <tr><th>Label</th><th>Count</th></tr>
-    <tr><td>supported</td><td>—</td></tr>
-    <tr><td>contradicted</td><td>—</td></tr>
-    <tr><td>partially_supported</td><td>—</td></tr>
-    <tr><td>underspecified</td><td>—</td></tr>
-    <tr><td>unverifiable_from_artifacts</td><td>—</td></tr>
-    <tr><td>not_checked</td><td>—</td></tr>
+    <tr><td>supported</td><td>4</td></tr>
+    <tr><td>contradicted</td><td>1</td></tr>
+    <tr><td>partially_supported</td><td>0</td></tr>
+    <tr><td>underspecified</td><td>1</td></tr>
+    <tr><td>unverifiable_from_artifacts</td><td>1</td></tr>
+    <tr><td>not_checked</td><td>0</td></tr>
   </table>
 
   <h3>Reproducibility-status distribution</h3>
   <table>
     <tr><th>Status</th><th>Count</th></tr>
-    <tr><td>reproduced</td><td>—</td></tr>
-    <tr><td>approximately_reproduced</td><td>—</td></tr>
-    <tr><td>failed_numeric_mismatch</td><td>—</td></tr>
-    <tr><td>failed_missing_data / code / environment</td><td>—</td></tr>
-    <tr><td>not_applicable / not_attempted</td><td>—</td></tr>
+    <tr><td>reproduced</td><td>3</td></tr>
+    <tr><td>approximately_reproduced</td><td>0</td></tr>
+    <tr><td>failed_numeric_mismatch</td><td>0</td></tr>
+    <tr><td>failed_missing_data / code / environment</td><td>0</td></tr>
+    <tr><td>not_applicable / not_attempted</td><td>4 / 0</td></tr>
   </table>
+
+  <h3>Failure-mode distribution</h3>
+  <table>
+    <tr><th>Mode</th><th>Count</th></tr>
+    <tr><td>none</td><td>4</td></tr>
+    <tr><td>table_cell_mismatch</td><td>1</td></tr>
+    <tr><td>underspecified</td><td>1</td></tr>
+    <tr><td>evidence_undecidable</td><td>1</td></tr>
+  </table>
+  <p>Four of the seven fixtures never exercise a reproduction channel and are
+  <code>not_applicable</code> rather than <code>reproduced</code>: three table claims, where reading
+  a cell is a lookup, and one passage claim with nothing to compute. No fixture lands on
+  <code>approximately_reproduced</code> — the three that reproduce do so exactly — so that path is
+  pinned by unit tests instead of by a task.</p>
 
   <div class="callout">Results are reproducible: the exact commands to regenerate this page's
   numbers will live in <code>docs/REPRODUCIBILITY.md</code> and can be run offline on

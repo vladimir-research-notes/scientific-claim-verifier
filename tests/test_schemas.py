@@ -20,9 +20,10 @@ from scientific_claim_verifier import schemas as S
 
 
 def test_schema_version_is_real() -> None:
-    # The Milestone 0 stub used "0-stub"; M1 shipped "1.0"; M5 bumped to "1.1" when
-    # it added CheckStatus.INCONCLUSIVE (an additive change — 1.0 docs stay valid).
-    assert S.SCHEMA_VERSION == "1.1"
+    # The Milestone 0 stub used "0-stub"; M1 shipped "1.0"; M5 bumped to "1.1" when it
+    # added CheckStatus.INCONCLUSIVE, and M7 to "1.2" for FailureMode.EVIDENCE_UNDECIDABLE
+    # (both additive changes — every 1.0 document stays valid).
+    assert S.SCHEMA_VERSION == "1.2"
     assert "stub" not in S.SCHEMA_VERSION
 
 

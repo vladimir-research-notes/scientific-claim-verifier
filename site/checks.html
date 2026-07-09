@@ -82,18 +82,32 @@
   whose <em>method cannot decide</em> says <code>inconclusive</code> — a distinct status, added to the
   schema in Milestone 5 (version <code>1.1</code>, additive).</p>
   <table>
-    <tr><th>Status</th><th>Meaning</th><th>Scoring consequence (M7)</th></tr>
-    <tr><td><code>pass</code></td><td>The artifacts agree with the claim.</td><td>supports <code>supported</code></td></tr>
-    <tr><td><code>fail</code></td><td>The artifacts <strong>disagree</strong>.</td><td>supports <code>contradicted</code></td></tr>
-    <tr><td><code>inconclusive</code></td><td>The method <strong>cannot decide</strong>.</td><td><code>unverifiable_from_artifacts</code></td></tr>
-    <tr><td><code>error</code></td><td>The check could not run.</td><td><code>failed_*</code></td></tr>
-    <tr><td><code>skipped</code></td><td>The check did not apply.</td><td><code>not_checked</code></td></tr>
+    <tr><th>Status</th><th>Meaning</th><th>Signal it reduces to (M7)</th></tr>
+    <tr><td><code>pass</code></td><td>The artifacts agree with the claim.</td><td><code>supports</code> — or <code>ambiguous</code>, for a column lookup the claim never disambiguated</td></tr>
+    <tr><td><code>fail</code></td><td>The artifacts <strong>disagree</strong>.</td><td><code>refutes</code> — except an <em>absent</em> passage, which decides nothing</td></tr>
+    <tr><td><code>inconclusive</code></td><td>The method <strong>cannot decide</strong>.</td><td><code>undecided</code> → <code>unverifiable_from_artifacts</code></td></tr>
+    <tr><td><code>error</code></td><td>The check could not run.</td><td><code>undecided</code> → <code>failed_*</code> reproduction, via <code>error_kind</code></td></tr>
+    <tr><td><code>skipped</code></td><td>The check did not apply.</td><td><code>undecided</code> — a limitation, not a failure</td></tr>
   </table>
   <div class="callout">Without <code>inconclusive</code>, a transparent lexical check faced with a
   paraphrase would have to report <code>fail</code>, and scoring would manufacture a
   <em>contradiction</em> out of the checker's own ignorance. The distinction between "the artifacts
   say you are wrong" and "I cannot tell" is the difference between an auditable tool and a merely
   confident one.</div>
+  <p>A status is a fact about the <em>check</em>; the signal is what the check says about the
+  <em>claim</em>, and the mapping is not one-to-one in either direction. Scoring reads only signals —
+  see <a href="reproducibility.html">Reproducibility &amp; scoring</a>.</p>
+
+  <h2><code>error_kind</code>: why the check could not run</h2>
+  <p>Every <code>error</code> check records a closed-vocabulary cause in
+  <code>inputs.error_kind</code>: <code>dangling_link</code>, <code>missing_passage</code>,
+  <code>missing_data</code>, <code>unreadable_data</code>, <code>missing_code</code>,
+  <code>sandbox_failure</code>, <code>execution_timeout</code>, <code>nonzero_exit</code>,
+  <code>missing_column</code>, <code>missing_row</code>, <code>non_numeric_cell</code>,
+  <code>empty_column</code>. Scoring maps these onto reproduction statuses and failure modes with a
+  table lookup — "the script is missing" and "the sandbox broke" are different outcomes, and
+  distinguishing them by matching English in a notes field would not be a contract. The
+  <code>notes</code> remain the human explanation; <code>error_kind</code> is the machine one.</p>
 
   <h2>Evidence presence: what a lexical check can and cannot confirm</h2>
   <p>The linker retrieves the passage; this check asks whether the passage <em>says</em> the claim.
@@ -154,10 +168,12 @@
 
   <div class="callout">A check never decides the final label alone. Checks produce evidence;
   <a href="reproducibility.html">scoring</a> maps the set of checks onto a support label,
-  a reproducibility status, and (on failure) a failure mode. The
+  a reproducibility status, and (on failure) a failure mode — and names the rule it used. The
   <code>contradicted_f1</code> fixture is the proof: the paper's abstract asserts the claim verbatim
   (<code>evidence_presence</code> passes) while its own results table refutes it
-  (<code>table_value</code> fails). Both are true, and a single verdict would destroy that fact.</div>
+  (<code>table_value</code> fails). Both are true, the label is <code>contradicted</code>, and the
+  report still shows the passage that asserts it. A single collapsed verdict would destroy that
+  fact.</div>
 
   <h2>Determinism</h2>
   <p>Every check is a pure function of its inputs apart from code execution, which starts a child

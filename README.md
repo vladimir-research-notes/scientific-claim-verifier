@@ -83,6 +83,7 @@ claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml
 claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml --no-declared-source
 claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
 claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.yaml --out results/runs/
+claimverifier verify         --task tasks/ml_claims/synthetic_data_passage.yaml --out results/runs/
 ```
 
 `link-evidence` reports the ranked passage candidates, the emitted evidence links
@@ -96,7 +97,7 @@ retrieval is actually worth measuring. See
 the claim, is the value in that table cell, does the statistic recompute from the
 CSV, does the script print what the claim says. It prints supporting text and
 computed checks as separate blocks and **assigns no verdict** — the support label
-is inferred from the checks by scoring (M7). On `contradicted_f1` the passage check
+is inferred from the checks by scoring. On `contradicted_f1` the passage check
 passes and the table check fails, which is the point. See
 [`docs/CHECKS.md`](docs/CHECKS.md).
 
@@ -108,17 +109,31 @@ itself. Those are reproducibility controls, not security controls: it runs trust
 committed fixture scripts and is **not a sandbox for untrusted code**. See
 [`docs/SANDBOX.md`](docs/SANDBOX.md).
 
+`verify` is the one stage allowed to draw an inference. It reduces each check to what
+it says about the *claim* — a check's `status` is a fact about the check, and one
+status means more than one thing — then applies five ordered rules and **records which
+rule fired and which checks it read**, into the report and a JSONL trace. Repeat
+`--task` to score several and get an aggregate summary. It exits `0` on a
+`contradicted` claim: finding a contradiction is the tool working. See
+[`docs/SCORING.md`](docs/SCORING.md).
+
+Over the seven committed fixtures it recovers 6/7 support labels and 7/7 reproduction
+statuses — but the number to watch is **0 wrong verdicts**. Its one miss
+(`synthetic_data_passage`) is a *refusal to decide*: the passage supports the claim in
+a paraphrase, the lexical evidence check honestly returns `inconclusive`, and scoring
+reports `unverifiable_from_artifacts` rather than guessing. See
+[`docs/RESULTS.md`](docs/RESULTS.md).
+
 Target (each lands with its subsystem — see the milestones):
 
 ```bash
-claimverifier verify        --task tasks/table_claims/accuracy_improvement.yaml --out results/runs/
 claimverifier run-suite     --suite tasks/smoke_suite.yaml --out results/runs/
 claimverifier report        --run results/runs/<run_id> --out results/reports/<run_id>.md
 ```
 
 An unimplemented command fails loudly rather than pretending to work. `run-checks`
-is deliberately not `verify`: it computes checks and stops, because `verify` implies
-a support label and that inference belongs to scoring.
+is deliberately not `verify`: it computes checks and stops, while `verify` draws the
+inference the checks are forbidden to draw.
 
 ## Building the system (milestone runner)
 

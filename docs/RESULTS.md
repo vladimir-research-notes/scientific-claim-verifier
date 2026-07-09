@@ -13,7 +13,7 @@ that do not exist yet are marked pending, not estimated.
 | Evidence linking vs. gold | M4 | measured below |
 | Verification checks | M5 | measured below |
 | Sandbox reproduction | M6 | measured below |
-| Support labels / failure modes | M7 | pending |
+| Support labels / failure modes | M7 | measured below |
 | Smoke suite (8–15 tasks, end to end) | M8 | pending |
 
 ## M2 — fixture validation
@@ -205,7 +205,7 @@ label the claim `underspecified` rather than `supported`.
 ## M5 — verification checks
 
 ```bash
-python3 -m pytest tests/test_checks.py -q                # 112 tests
+python3 -m pytest tests/test_checks.py -q                # 118 tests (6 added by M7)
 claimverifier run-checks --task <task.yaml>              # per-task check report
 ```
 
@@ -376,10 +376,136 @@ Wall-clock duration is measured (≈30 ms per script here) and deliberately kept
 the trace unless `--with-timing` is passed. It is the only value in an execution record
 that cannot be reproduced.
 
+## M7 — support labels, reproduction status, failure modes
+
+```bash
+python3 -m pytest tests/test_scoring.py -q                # 100 tests
+claimverifier verify --task <task.yaml>                   # per-task verdict + trace
+claimverifier verify --task A.yaml --task B.yaml ...      # + aggregate summary
+```
+
+The verdict the pipeline draws for each committed fixture, beside the gold outcome the
+task file declares. Nothing here is an LLM judgement: each label is assigned by a named
+rule over the M5 checks, and the rule is recorded in the trace.
+
+| Task | Support label | Reproduction | Failure mode | Gold |
+| --- | --- | --- | --- | --- |
+| `accuracy_improvement` | `supported` | `not_applicable` | `none` | ✓ ✓ ✓ |
+| `contradicted_f1` | `contradicted` | `not_applicable` | `table_cell_mismatch` | ✓ ✓ ✓ |
+| `dataset_mean` | `supported` | `reproduced` | `none` | ✓ ✓ ✓ |
+| `gc_content` | `supported` | `reproduced` | `none` | ✓ ✓ ✓ |
+| `recompute_accuracy` | `supported` | `reproduced` | `none` | ✓ ✓ ✓ |
+| `underspecified_split` | `underspecified` | `not_applicable` | `underspecified` | ✓ ✓ ✓ |
+| `synthetic_data_passage` | **`unverifiable_from_artifacts`** | `not_applicable` | **`evidence_undecidable`** | ✗ ✓ ✗ |
+
+| Agreement with gold | Score |
+| --- | --- |
+| `support_label` | **6/7** |
+| `reproduction_status` | **7/7** |
+| `failure_mode` | **6/7** |
+| **Wrong verdicts** | **0/7** |
+| Conservative misses | 1/7 (`synthetic_data_passage`) |
+
+### The only number that matters here
+
+**Wrong verdicts: 0.** A mismatch is bucketed by *kind*, because a single accuracy
+number hides the difference between a system that says the wrong thing and one that
+declines to say anything:
+
+- a **conservative miss** predicts a non-committal label (`unverifiable_from_artifacts`,
+  `not_checked`) where gold commits — the system declined to decide, and asserted
+  nothing false;
+- a **wrong verdict** asserts a committal label gold disagrees with.
+
+The pipeline's single miss is `synthetic_data_passage`, and it is conservative. Gold
+says `supported`; the passage really does support the claim. But *"The model is trained
+**only** on synthetic data"* is asserted by *"All experiments use synthetic data …; no
+real corpora were used at any stage of **training**"* — a paraphrase at 40% token
+coverage. The lexical evidence check returns `inconclusive` (M5), scoring maps that to
+`unverifiable_from_artifacts` with failure mode `evidence_undecidable`, and
+`confidence` reads `0.00`: *nothing about this claim was decided, and the report says
+so.*
+
+This is the honest cost of a transparent method, and `wrong_verdicts` is the number to
+watch: **a change to the extractor, the linker, or the checks that raises label accuracy
+by turning a conservative miss into a wrong verdict has made the tool worse.**
+
+### Where each verdict comes from
+
+Two fixtures link the same locator shape and get opposite labels, from the same rule
+table, on the strength of what the checks recorded in `inputs`:
+
+| Fixture | `table_value` | `matching_rows` | Signal | Label |
+| --- | --- | --- | --- | --- |
+| `underspecified_split` | `pass` | `["dev"]` of 2 rows | `ambiguous` | `underspecified` |
+| `contradicted_f1` | `fail` | `[]` of 2 rows | `refutes` | `contradicted` |
+
+And `contradicted_f1` keeps both channels visible: its `evidence_presence` check
+**passes** (the abstract asserts the claim verbatim) while its `table_value` check
+**fails** (the table says 86.0). The support label is `contradicted`, and the report
+still shows the passage that asserts it. Collapsing the two would destroy the only
+interesting fact about the claim.
+
+### Worked example
+
+```
+$ claimverifier verify --task tasks/ml_claims/synthetic_data_passage.yaml
+(abridged)
+
+Claim           : c_synthetic_data (descriptive_claim)
+Text            : The model is trained only on synthetic data.
+
+Supporting text (retrieved evidence):
+  "All experiments use synthetic data generated by our pipeline; no real corpora
+   were used at any stage of training."
+
+Computed checks (what each artifact says about the claim):
+  [inconclusive] evidence_presence  p_data  -> undecided
+
+Inference (drawn from the checks above; each rule names the checks it read):
+  support_label       : unverifiable_from_artifacts
+    rule              : nothing_decided [c_synthetic_data.evidence_presence.1]
+    because           : no check reached a verdict: a lexical check cannot decide
+                        whether the passage asserts the claim (40% token coverage,
+                        missing ['model', 'only', 'trained'])
+  reproduction_status : not_applicable
+    rule              : no_reproduction_channel
+  failure_mode        : evidence_undecidable
+  confidence          : 0.00 (share of checks that reached a verdict; not a probability)
+
+Unverifiable from these artifacts (what this verdict does NOT settle):
+  - evidence_presence: a lexical check cannot decide whether the passage asserts
+    the claim (40% token coverage, missing ['model', 'only', 'trained'])
+
+Task gold       : supported [MISS] / not_applicable [ok ] / none [MISS]
+```
+
+The report marks its own miss. `evidence_undecidable` is a new failure mode
+(`SCHEMA_VERSION` 1.2): `inconclusive` arrived in M5 with nothing to map onto, and
+recording `passage_does_not_assert` here would have published the checker's ignorance
+as a fact about the paper.
+
+### How to read this
+
+**A regression harness, not a benchmark.** Seven hand-authored synthetic fixtures, whose
+gold outcomes were written alongside the rules that score them. 6/7 does not mean
+scientific claim verification is 86% solved. What the table shows is that the rule table
+is coherent (no fixture needs a special case), that it never asserts a verdict gold
+contradicts, and that the one claim its methods cannot read is *reported as unread*
+rather than guessed at.
+
+`reproduction_status` is 7/7 because the three reproducing fixtures reproduce **exactly**
+— `mean(value) = 40.8/12 = 3.4`, `accuracy=0.80`, `gc_content=0.50` — and the four table
+and passage claims correctly get `not_applicable`: reading a value out of a table cell is
+a lookup, not a reproduction.
+
+Traces are byte-identical across runs, including for the two fixtures whose scripts
+actually execute. See `docs/SCORING.md` for every rule and its known limits.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 346 passed
+python3 -m pytest -q     # 452 passed
 ruff check .             # all checks passed
 ```
 
@@ -392,6 +518,7 @@ ruff check .             # all checks passed
 | M4 | 69 | 171 |
 | M5 | 114 | 285 |
 | M6 | 61 | 346 |
+| M7 | 106 | 452 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
 used anywhere in the default path. M5's and M6's tests execute committed, stdlib-only

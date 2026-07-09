@@ -26,54 +26,79 @@
 </header>
 <main>
   <h1>Example report</h1>
-  <p class="lede">An illustrative sketch of a report for a dataset-statistic claim. The real
-  generator (Milestone 9) emits reports from JSONL traces; this page is a design mock and will
-  be replaced with a report from an actual smoke-suite run.</p>
-  <p><span class="status planned">status: illustrative mock — real reports land in Milestones 8–9</span></p>
+  <p class="lede">A real verification result for a dataset-statistic claim, printed by
+  <code>claimverifier verify</code>. The Markdown/HTML report <em>generator</em> lands in
+  Milestone 9; the content below — the five separated channels and the trace behind them — is what
+  it will render.</p>
+  <p><span class="status done">status: real output, Milestone 7</span> &nbsp; <span class="status planned">Markdown/HTML generator lands in Milestone 9</span></p>
 
-  <h2>Illustrative verification result</h2>
-  <pre><code># Verification report — task: statistical_claims/samples_mean
+  <h2>Verification result</h2>
+  <pre><code>$ claimverifier verify --task tasks/statistical_claims/dataset_mean.yaml
 
-Claim (as written)
-  "The dataset contains 120 samples with mean value 3.4."
+Task            : dataset_mean
+Claim           : c_dataset_mean (dataset_claim)
+Text            : The measurements dataset has 12 samples with a mean value of 3.4.
+Normalized      : mean ~ 3.4
 
-Extracted claim
-  claim_type          : dataset_claim
-  metrics             : [count, mean]
-  datasets            : [ds_synthetic_a]
-  expected_value      : {count: 120, mean: 3.4}
-  comparison_operator : ~ (approx)
+Supporting text (retrieved evidence):
+  "The measurements dataset has 12 samples with a mean value of 3.4."
 
-Supporting text
-  passage p3 (paper_snippets.md):
-    "Our synthetic set comprises 120 samples (mean 3.4)."
+Computed checks (what each artifact says about the claim):
+  [pass        ] evidence_presence  p_dataset        -&gt; supports
+  [pass        ] dataset_statistic  ds_measurements  -&gt; supports
+  [pass        ] dataset_statistic  ds_measurements  -&gt; supports
 
-Computed check
-  dataset statistic recompute  [data/fixtures/datasets/ds_synthetic_a.csv, sha256 3b9f...]
-    count : expected 120  computed 120        -> match
-    mean  : expected 3.4  computed 3.387       abs_diff 0.013  tol 0.05  -> within tolerance
+Inference (drawn from the checks above; each rule names the checks it read):
+  support_label       : supported
+    rule              : all_checks_support [c_dataset_mean.evidence_presence.1,
+                        c_dataset_mean.dataset_statistic.1,
+                        c_dataset_mean.dataset_statistic.2]
+    because           : all 3 check(s) reached a verdict and every verdict supports the claim
+  reproduction_status : reproduced
+    rule              : dataset_recomputation
+    because           : the recomputation reproduced the claimed value exactly
+  failure_mode        : none
+    rule              : clean
+    because           : the artifacts support the claim and nothing failed to reproduce
+  confidence          : 1.00 (share of checks that reached a verdict; not a probability)
 
-Inference
-  support_label         : supported
-  reproduction_status   : approximately_reproduced
-  failure_mode          : none
-  confidence            : high
+Unverifiable from these artifacts (what this verdict does NOT settle):
+  (none — every check reached a verdict)
 
-Unverifiable
-  (none for this claim)
+Task gold       : supported [ok ] / reproduced [ok ] / none [ok ]</code></pre>
+  <p>Two <code>dataset_statistic</code> checks, not one: the claim asserts a mean <em>and</em> a
+  sample count, and each is recomputed from the committed CSV independently — the mean within the
+  claim's own reported precision (±0.05, because it was written <code>3.4</code>), the count exactly,
+  because a CSV has a whole number of rows.</p>
 
-Limitations
-  Verdict is relative to the supplied fixture artifacts only.
-
-Trace: results/runs/&lt;run_id&gt;/trace.jsonl</code></pre>
+  <h2>The trace behind it</h2>
+  <p><code>--out DIR</code> writes <code>&lt;task_id&gt;.result.json</code> and
+  <code>&lt;task_id&gt;.trace.jsonl</code>. Every inference names the rule that produced it and the
+  checks that rule read, so a reader can re-derive the verdict without re-reading the code:</p>
+  <pre><code>{"data": {"claim_id": "c_dataset_mean", "claim_type": "dataset_claim", ...}, "kind": "scoring.claim", "seq": 0}
+{"data": {"links": [...]}, "kind": "scoring.evidence", "seq": 1}
+{"data": {"check": {...}, "signal": "supports"}, "kind": "scoring.check", "seq": 2}
+{"data": {"check": {...}, "signal": "supports"}, "kind": "scoring.check", "seq": 3}
+{"data": {"check": {...}, "signal": "supports"}, "kind": "scoring.check", "seq": 4}
+{"data": {"because": "all 3 check(s) reached a verdict...", "check_ids": [...],
+          "rule": "all_checks_support", "support_label": "supported"}, "kind": "scoring.support", "seq": 5}
+{"data": {"because": "the recomputation reproduced the claimed value exactly",
+          "reproduction_status": "reproduced", "rule": "dataset_recomputation"}, "kind": "scoring.reproduction", "seq": 6}
+{"data": {"causes": [], "failure_mode": "none", "rule": "clean"}, "kind": "scoring.failure", "seq": 7}
+{"data": {"confidence": 1.0, "limitations": [], "schema_version": "1.2"}, "kind": "scoring.result", "seq": 8}</code></pre>
+  <p>Keys are sorted and nothing is read from the wall clock, so two runs of one task produce
+  byte-identical bytes — including tasks whose script actually executes.</p>
 
   <h2>Report sections</h2>
-  <p>Every generated report keeps the five channels separate — extracted claim, supporting
-  text, computed check, inference, unverifiable — plus limitations and a link to the JSONL
-  trace. The Markdown report is the default; an optional HTML report shares the same content.</p>
+  <p>Every report keeps the five channels separate — extracted claim, supporting text, computed
+  check, inference, unverifiable — plus limitations and a link to the JSONL trace. A verdict is not a
+  summary of the checks; it is an inference <em>from</em> them, and both are shown so a reader can
+  disagree with the second without losing the first.</p>
 
-  <div class="callout">This is a mock for orientation. When the smoke suite runs
-  (Milestone 8) the site will link to a real generated report and its trace.</div>
+  <div class="callout">Milestone 9 renders this as Markdown (and optional HTML) directly from the
+  trace, and Milestone 8's smoke suite will link a generated report for every task. See the
+  <a href="results.html">Results</a> page for the fixture where this pipeline declines to reach a
+  verdict at all.</div>
 </main>
 <footer class="site">scientific-claim-verifier — example report.</footer>
 </body>

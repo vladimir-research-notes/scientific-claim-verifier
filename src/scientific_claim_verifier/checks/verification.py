@@ -42,7 +42,7 @@ from ..schemas import (
     ScientificClaim,
     VerificationCheck,
 )
-from . import Tolerance, check_id
+from . import ErrorKind, Tolerance, check_id
 from .code_execution import ScriptRunner, code_execution_check
 from .consistency import comparison_check, evidence_presence_check
 from .statistical import (
@@ -121,7 +121,7 @@ def _dangling(
         claim_id=claim.claim_id,
         status=CheckStatus.ERROR,
         evidence=[link],
-        inputs={"target_id": link.target_id},
+        inputs={"target_id": link.target_id, "error_kind": ErrorKind.DANGLING_LINK.value},
         notes=f"linked {link.kind.value} {link.target_id!r} does not resolve to any artifact",
     )
 

@@ -45,7 +45,7 @@ from ..schemas import (
     ScientificClaim,
     VerificationCheck,
 )
-from . import Tolerance, compare, resolve_tolerance, stable
+from . import ErrorKind, Tolerance, compare, resolve_tolerance, stable
 
 # The statistics a claim may name, computed with the stdlib only.
 STATISTICS: dict[str, Callable[[Sequence[float]], float]] = {
@@ -173,6 +173,10 @@ def dataset_statistic_check(
             check_id, claim, CheckType.DATASET_STATISTIC, status, [link], inputs, notes
         )
 
+    def errored(kind: ErrorKind, notes: str) -> VerificationCheck:
+        inputs["error_kind"] = kind.value
+        return fail(CheckStatus.ERROR, notes)
+
     if locator.column is None:
         # The linker declined to name a measured column (several candidates, none
         # named by the claim). That is underspecification, not an error.
@@ -180,20 +184,22 @@ def dataset_statistic_check(
             CheckStatus.SKIPPED, "dataset linked without a column locator; nothing to recompute"
         )
     if dataset.path is None:
-        return fail(CheckStatus.ERROR, f"dataset {dataset.artifact_id!r} declares no file path")
+        return errored(
+            ErrorKind.MISSING_DATA, f"dataset {dataset.artifact_id!r} declares no file path"
+        )
 
     try:
         path = loader.resolve_fixture_path(dataset.path, repo_root)
     except loader.TaskLoadError as exc:
-        return fail(CheckStatus.ERROR, str(exc))
+        return errored(ErrorKind.MISSING_DATA, str(exc))
     if not path.is_file():
-        return fail(CheckStatus.ERROR, f"dataset file not found: {dataset.path}")
+        return errored(ErrorKind.MISSING_DATA, f"dataset file not found: {dataset.path}")
 
     try:
         values = read_numeric_column(path, locator.column)
         computed = compute_statistic(statistic, values)
     except (loader.TaskLoadError, KeyError, ValueError) as exc:
-        return fail(CheckStatus.ERROR, f"cannot compute {statistic}: {exc}")
+        return errored(ErrorKind.UNREADABLE_DATA, f"cannot compute {statistic}: {exc}")
 
     inputs["column"] = locator.column
     inputs["n_values"] = len(values)

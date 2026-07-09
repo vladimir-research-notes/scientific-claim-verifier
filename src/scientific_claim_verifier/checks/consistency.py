@@ -51,7 +51,7 @@ from ..schemas import (
     ScientificClaim,
     VerificationCheck,
 )
-from . import Tolerance, operator_holds, resolve_tolerance, stable
+from . import ErrorKind, Tolerance, operator_holds, resolve_tolerance, stable
 
 # Closed-class negators. They survive stopword removal by design (see
 # ``evidence/passages.py``), so they are visible as tokens here.
@@ -164,7 +164,7 @@ def evidence_presence_check(
             **base,
             status=CheckStatus.ERROR,
             evidence=[link],
-            inputs={"passage_id": link.target_id},
+            inputs={"passage_id": link.target_id, "error_kind": ErrorKind.MISSING_PASSAGE.value},
             notes=f"linked passage {link.target_id!r} does not resolve to any passage",
         )
 

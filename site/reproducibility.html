@@ -29,31 +29,63 @@
   <p class="lede">Scoring maps the set of checks onto three explicit vocabularies: a support
   label (is the claim backed?), a reproducibility status (did the computation reproduce?), and
   a failure mode (if not, why?).</p>
-  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status done">checks that feed scoring live in Milestone 5</span> &nbsp; <span class="status done">the sandbox that reproduces lands in Milestone 6</span> &nbsp; <span class="status planned">scoring logic lands in Milestone 7</span></p>
+  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status done">checks that feed scoring live in Milestone 5</span> &nbsp; <span class="status done">the sandbox that reproduces lands in Milestone 6</span> &nbsp; <span class="status done">scoring logic lands in Milestone 7</span></p>
+
+  <h2>A check's status is not its meaning</h2>
+  <p>Scoring never reads a check's <code>status</code> directly. It first reduces each check to what
+  that check says about the <strong>claim</strong> — <code>supports</code>, <code>refutes</code>,
+  <code>ambiguous</code>, or <code>undecided</code> — because one status means more than one thing:</p>
+  <table>
+    <tr><th>Check</th><th>Status</th><th>Signal</th><th>Why</th></tr>
+    <tr><td><code>evidence_presence</code></td><td><span class="pill bad">fail</span></td><td>refutes</td><td>The passage has the claim's tokens and <em>negates</em> them.</td></tr>
+    <tr><td><code>evidence_presence</code></td><td><span class="pill bad">fail</span></td><td>undecided</td><td>The passage never mentions the claim. <strong>Silence is not refutation.</strong></td></tr>
+    <tr><td><code>table_value</code></td><td><span class="pill ok">pass</span></td><td>supports</td><td>The value is in the cell the claim named.</td></tr>
+    <tr><td><code>table_value</code></td><td><span class="pill ok">pass</span></td><td>ambiguous</td><td>The value appears <em>somewhere</em> in a column of several rows; the claim named none.</td></tr>
+    <tr><td><code>code_execution</code></td><td><span class="pill ok">pass</span></td><td>supports</td><td>The script printed the output the bundle declared.</td></tr>
+    <tr><td><code>code_execution</code></td><td><span class="pill ok">pass</span></td><td>undecided</td><td>Nothing was declared. <strong>Exit 0 alone is not evidence for a number.</strong></td></tr>
+  </table>
 
   <h2>Support labels</h2>
+  <p>Five ordered rules over the signals. The first to fire wins, and the report and the trace
+  record <strong>which rule fired and which checks it read</strong>.</p>
   <table>
-    <tr><th>Label</th><th>Meaning</th></tr>
-    <tr><td><span class="pill ok">supported</span></td><td>Checks confirm the claim against the artifacts.</td></tr>
-    <tr><td><span class="pill bad">contradicted</span></td><td>Checks show the artifacts disagree with the claim.</td></tr>
-    <tr><td><span class="pill warn">partially_supported</span></td><td>Some but not all of the claim holds (e.g. direction right, magnitude off).</td></tr>
-    <tr><td><span class="pill warn">underspecified</span></td><td>The claim omits conditions needed to check it unambiguously.</td></tr>
-    <tr><td><span class="pill">unverifiable_from_artifacts</span></td><td>No artifact in the bundle can settle the claim.</td></tr>
-    <tr><td><span class="pill">not_checked</span></td><td>No applicable check ran.</td></tr>
+    <tr><th>Label</th><th>Rule</th><th>Meaning</th></tr>
+    <tr><td><span class="pill bad">contradicted</span></td><td><code>artifacts_refute</code></td><td>Some check refutes the claim.</td></tr>
+    <tr><td><span class="pill warn">underspecified</span></td><td><code>claim_ambiguous</code></td><td>Nothing refutes it, but a check cannot tell which value the claim means.</td></tr>
+    <tr><td><span class="pill ok">supported</span></td><td><code>all_checks_support</code></td><td>Every check reached a verdict, and all support the claim.</td></tr>
+    <tr><td><span class="pill warn">partially_supported</span></td><td><code>some_checks_support</code></td><td>Some support it, some could not decide, none refute it.</td></tr>
+    <tr><td><span class="pill">unverifiable_from_artifacts</span></td><td><code>nothing_decided</code></td><td>No check reached a verdict.</td></tr>
+    <tr><td><span class="pill">not_checked</span></td><td><code>no_checks</code></td><td>No check ran at all (a guard).</td></tr>
   </table>
+  <p><strong>Order is the argument.</strong> Refutation beats ambiguity: a value absent from a
+  column is contradicted whether or not the claim also omitted the row. Ambiguity beats support:
+  <code>underspecified_split</code> <em>does</em> find 90.0 in the accuracy column, and calling that
+  <code>supported</code> is exactly the overclaim the label exists to prevent — the table reports
+  90.0 on dev and 82.0 on test, and the claim never says which.</p>
+  <div class="callout"><strong><code>nothing_decided</code> maps to
+  <code>unverifiable_from_artifacts</code>, never <code>contradicted</code>.</strong> A checker that
+  cannot decide has learned nothing about the claim. Reporting a contradiction there would turn the
+  checker's own ignorance into evidence against the paper.</div>
 
   <h2>Reproducibility statuses</h2>
+  <p>A <em>reproduction</em> re-derives a number from an artifact. Two checks do that:
+  <code>code_execution</code> runs the script, and <code>dataset_statistic</code> recomputes the
+  statistic from the CSV. <strong>Reading a value out of a table cell is a lookup, not a
+  reproduction</strong> — so a table claim is <code>not_applicable</code>, rather than being inflated
+  into a reproduced result.</p>
   <table>
     <tr><th>Status</th><th>Meaning</th></tr>
-    <tr><td><span class="pill ok">reproduced</span></td><td>Recomputation matches within tolerance.</td></tr>
-    <tr><td><span class="pill ok">approximately_reproduced</span></td><td>Matches within a looser, recorded tolerance.</td></tr>
-    <tr><td><span class="pill bad">failed_environment</span></td><td>Execution failed for environment reasons.</td></tr>
-    <tr><td><span class="pill bad">failed_missing_data</span></td><td>Required dataset artifact absent.</td></tr>
-    <tr><td><span class="pill bad">failed_missing_code</span></td><td>Required code artifact absent.</td></tr>
-    <tr><td><span class="pill bad">failed_numeric_mismatch</span></td><td>Ran, but output is outside tolerance.</td></tr>
-    <tr><td><span class="pill">not_applicable</span></td><td>Claim needs no computation (e.g. descriptive).</td></tr>
-    <tr><td><span class="pill">not_attempted</span></td><td>Reproduction was possible but not run.</td></tr>
+    <tr><td><span class="pill ok">reproduced</span></td><td>The recomputed number matched the claim <em>exactly</em>.</td></tr>
+    <tr><td><span class="pill ok">approximately_reproduced</span></td><td>It landed inside the tolerance, but not on the value.</td></tr>
+    <tr><td><span class="pill bad">failed_environment</span></td><td>Timed out, exited non-zero, or the sandbox could not enforce its policy.</td></tr>
+    <tr><td><span class="pill bad">failed_missing_data</span></td><td>The dataset is absent or unusable.</td></tr>
+    <tr><td><span class="pill bad">failed_missing_code</span></td><td>The script is absent, or its link resolves to nothing.</td></tr>
+    <tr><td><span class="pill bad">failed_numeric_mismatch</span></td><td>It ran, and produced the wrong number.</td></tr>
+    <tr><td><span class="pill">not_applicable</span></td><td>The claim exercises no reproduction channel.</td></tr>
+    <tr><td><span class="pill">not_attempted</span></td><td><code>--no-execute</code>, or nothing was declared to compare against.</td></tr>
   </table>
+  <p>When a claim exercises both channels, the <strong>worst</strong> status wins: a script that
+  reproduced does not excuse a dataset that went missing.</p>
 
   <div class="callout"><strong>Why <code>failed_environment</code> and
   <code>failed_numeric_mismatch</code> are separate.</strong> Because the checks that feed them are.
@@ -119,22 +151,58 @@
   <a href="results.html">Results</a>.</p>
 
   <h2>Failure modes</h2>
-  <p>When a claim is not cleanly supported/reproduced, the result carries a
-  <code>failure_mode</code> that names the reason: missing evidence link, passage does not
-  assert the claim, table cell mismatch, statistic mismatch, numeric out of tolerance, missing
-  data, missing code, execution error/timeout, or underspecification. Failure modes are what
-  make aggregate results diagnostic rather than a single pass-rate number.</p>
+  <p>A support label says the claim is not backed. A failure mode says what to go and fix. That is
+  what makes an aggregate result diagnostic instead of a pass rate: eight <code>contradicted</code>
+  claims are one number, but "six table-cell mismatches and two paraphrases the lexical checker
+  could not read" is a work list. Every reason is collected; one is chosen by priority, and the rest
+  survive on the result as <code>limitations</code>.</p>
+  <pre><code>table_cell_mismatch → statistic_mismatch → numeric_out_of_tolerance
+  → execution_timeout → execution_error → missing_code → missing_data
+  → underspecified
+  → passage_does_not_assert → evidence_undecidable → missing_evidence_link → other</code></pre>
+  <p>Most concrete refutation first; the checker's own reach last. Everything below
+  <code>underspecified</code> is a statement about <strong>the checker</strong>, not about the
+  paper.</p>
+  <div class="callout"><strong><code>evidence_undecidable</code> vs.
+  <code>passage_does_not_assert</code>.</strong> The first says <em>the checker could not tell</em>;
+  the second says <em>the passage does not say it</em>. Milestone 5 introduced the
+  <code>inconclusive</code> check status with no failure mode to map onto, and the nearest existing
+  value asserted something the pipeline does not know — so Milestone 7 added
+  <code>evidence_undecidable</code> (schema 1.2, additive). The
+  <code>synthetic_data_passage</code> passage <em>does</em> assert its claim; a bag-of-words rule
+  simply cannot see it.</div>
   <p>The signals a check leaves behind are what make this possible. Given the bare column locator
   <code>col=accuracy</code>, the table check records <code>matching_rows</code> and
   <code>n_rows</code>: a claimed value found at one of two rows, with no row named, is
   <code>underspecified</code>; a claimed value found at <em>no</em> row is <code>contradicted</code>.
-  Same locator, different <code>inputs</code>, different label.</p>
+  Same locator, different <code>inputs</code>, different label. And every <code>error</code> check
+  records a closed-vocabulary <code>error_kind</code>, so scoring tells "the script is missing" from
+  "the sandbox broke" by table lookup rather than by matching English in a notes field.</p>
+
+  <h2>Confidence is decidedness, not probability</h2>
+  <p><code>VerificationResult.confidence</code> is the <strong>share of a claim's checks that
+  reached a pass/fail verdict</strong>. It is not calibrated against anything and it is not a
+  probability that the label is correct. A claim whose only check is <code>inconclusive</code> scores
+  <code>0.00</code> no matter how confident the wording of its label sounds. Inventing a calibrated
+  number here would need labelled data this project does not have.</p>
 
   <h2>Aggregate summary</h2>
-  <p>A suite run produces a summary (CSV/JSON) counting support labels, reproducibility
-  statuses, and failure modes across tasks — see <a href="results.html">Results</a>. Scoring is
-  deterministic: explanation quality is judged by expected fields, <strong>not</strong> by an
-  LLM grader.</p>
+  <p><code>claimverifier verify --task A --task B …</code> counts support labels, reproducibility
+  statuses, and failure modes across tasks, and compares each to the gold outcome its task file
+  declares. Scoring is deterministic: explanation quality is judged by expected fields,
+  <strong>not</strong> by an LLM grader.</p>
+  <p>A single accuracy number would hide the difference between a system that says the wrong thing
+  and one that declines to say anything — and for a verification tool that difference is the whole
+  point. So a mismatch is bucketed:</p>
+  <table>
+    <tr><th>Bucket</th><th>Meaning</th></tr>
+    <tr><td><span class="pill">conservative_misses</span></td><td>Predicted a non-committal label where gold commits. The system declined to decide; it asserted nothing false.</td></tr>
+    <tr><td><span class="pill bad">wrong_verdicts</span></td><td>Asserted a committal label the gold outcome disagrees with. <strong>These are the mistakes.</strong></td></tr>
+  </table>
+  <p>Over the committed fixtures <code>wrong_verdicts</code> is <strong>0</strong>. It is the number
+  to watch: a change to the extractor, the linker, or the checks that raises label accuracy by
+  turning a conservative miss into a wrong verdict has made the tool worse. See
+  <a href="results.html">Results</a>.</p>
 </main>
 <footer class="site">scientific-claim-verifier — reproducibility &amp; scoring.</footer>
 </body>

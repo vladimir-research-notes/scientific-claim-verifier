@@ -12,9 +12,10 @@ The models are [`pydantic`](https://docs.pydantic.dev) v2 `BaseModel`s. They sha
 one config choice: **`extra="forbid"`** — an unknown field is a hard validation
 error, not a silently dropped key, so a typo in a task file fails loudly.
 
-`SCHEMA_VERSION = "1.1"` is stamped into every `RunTrace`. Version `1.1`
-(Milestone 5) added `CheckStatus.INCONCLUSIVE`; it is an additive change, so every
-`1.0` document remains valid.
+`SCHEMA_VERSION = "1.2"` is stamped into every `RunTrace`. Version `1.1`
+(Milestone 5) added `CheckStatus.INCONCLUSIVE`; version `1.2` (Milestone 7) added
+`FailureMode.EVIDENCE_UNDECIDABLE`, the failure mode that status had no way to map
+onto. Both are additive changes, so every `1.0` document remains valid.
 
 ## Design principles
 
@@ -69,9 +70,14 @@ supplied bundle**, not a universal truth.
 ### `FailureMode` — if not clean, why?
 
 `none` (sentinel: no failure) · `missing_evidence_link` ·
-`passage_does_not_assert` · `table_cell_mismatch` · `statistic_mismatch` ·
-`numeric_out_of_tolerance` · `missing_data` · `missing_code` ·
+`passage_does_not_assert` · `evidence_undecidable` · `table_cell_mismatch` ·
+`statistic_mismatch` · `numeric_out_of_tolerance` · `missing_data` · `missing_code` ·
 `execution_error` · `execution_timeout` · `underspecified` · `other`.
+
+`evidence_undecidable` and `passage_does_not_assert` are deliberately distinct. The
+first says *the checker could not tell*; the second says *the passage does not say it*.
+Reporting the second when only the first is known would turn the checker's own
+ignorance into a fact about the paper. Assignment rules: `docs/SCORING.md`.
 
 ### `EvidenceKind`
 
@@ -246,6 +252,7 @@ The auditable record of a single verification run.
 ## Status
 
 **Milestone 1 complete.** The models, their vocabularies, and their invariants
-are covered by `tests/test_schemas.py`. The subsystems that populate them —
-extraction (M3), linking (M4), checks (M5), sandbox (M6), scoring (M7) — land in
-their own milestones.
+are covered by `tests/test_schemas.py`. Every model is now populated by a real
+subsystem: extraction (M3), linking (M4), checks (M5), sandbox (M6), and scoring
+(M7), which fills `VerificationResult` and writes the `RunTrace`. `BenchmarkSuite`
+awaits the smoke suite (M8).

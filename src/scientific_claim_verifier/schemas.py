@@ -37,9 +37,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # Bumped from the Milestone 0 placeholder ("0-stub") now that the real typed
 # models exist. Written into every ``RunTrace`` so a trace records the schema it
-# was produced under. 1.1 adds ``CheckStatus.INCONCLUSIVE`` (Milestone 5) — an
-# additive change: every 1.0 document is still valid.
-SCHEMA_VERSION = "1.1"
+# was produced under. 1.1 adds ``CheckStatus.INCONCLUSIVE`` (Milestone 5) and 1.2
+# adds ``FailureMode.EVIDENCE_UNDECIDABLE`` (Milestone 7) — both additive: every
+# 1.0 document is still valid.
+SCHEMA_VERSION = "1.2"
 
 # A scalar cell / value as it may appear in a table, a computed result, or an
 # expected output. ``None`` represents an absent cell. Booleans are intentionally
@@ -102,11 +103,18 @@ class ReproductionStatus(StrEnum):
 
 
 class FailureMode(StrEnum):
-    """Why a claim was not cleanly supported/reproduced. ``NONE`` = no failure."""
+    """Why a claim was not cleanly supported/reproduced. ``NONE`` = no failure.
+
+    ``EVIDENCE_UNDECIDABLE`` and ``PASSAGE_DOES_NOT_ASSERT`` are deliberately
+    distinct. The first says *the checker could not tell*; the second says *the
+    passage does not say it*. Reporting the second when only the first is known
+    would turn the checker's own ignorance into a fact about the paper.
+    """
 
     NONE = "none"
     MISSING_EVIDENCE_LINK = "missing_evidence_link"
     PASSAGE_DOES_NOT_ASSERT = "passage_does_not_assert"
+    EVIDENCE_UNDECIDABLE = "evidence_undecidable"
     TABLE_CELL_MISMATCH = "table_cell_mismatch"
     STATISTIC_MISMATCH = "statistic_mismatch"
     NUMERIC_OUT_OF_TOLERANCE = "numeric_out_of_tolerance"

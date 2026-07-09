@@ -756,6 +756,116 @@ def test_run_checks_reports_a_dangling_link_as_an_error() -> None:
     run = verification.run_checks(claim, _bundle_with_table(), links, repo_root=REPO_ROOT)
     table = run.of_type(CT.TABLE_VALUE)[0]
     assert table.status is ST.ERROR and "does not resolve" in (table.notes or "")
+    assert table.inputs["error_kind"] == checks.ErrorKind.DANGLING_LINK.value
+
+
+# ---------------------------------------------------------------------------
+# `error_kind`: the machine-readable cause behind every `error`
+#
+# Scoring (M7) maps these onto reproduction statuses and failure modes. Without
+# them it would have to distinguish "the script is missing" from "the sandbox
+# broke" by matching English in `notes`, which is not a contract.
+# ---------------------------------------------------------------------------
+
+EK = checks.ErrorKind
+
+
+def test_every_table_error_path_names_its_cause() -> None:
+    claim = make_claim("accuracy of 78.0", expected_value=78.0)
+    assert check_table(claim, ACCURACY_TABLE, "col=auc").inputs["error_kind"] == EK.MISSING_COLUMN
+    unknown_row = check_table(claim, ACCURACY_TABLE, "row=Z,col=accuracy")
+    assert unknown_row.inputs["error_kind"] == EK.MISSING_ROW
+    text_cell = Table(table_id="t", columns=["method", "accuracy"], rows=[["A", "n/a"]])
+    assert (
+        check_table(claim, text_cell, "row=A,col=accuracy").inputs["error_kind"]
+        == EK.NON_NUMERIC_CELL
+    )
+    empty = Table(table_id="t", columns=["method", "accuracy"], rows=[["A", "n/a"]])
+    assert check_table(claim, empty, "col=accuracy").inputs["error_kind"] == EK.EMPTY_COLUMN
+
+
+def test_every_dataset_error_path_names_its_cause() -> None:
+    claim = make_claim("a mean value of 3.4", ClaimType.DATASET, expected_value=3.4)
+    gone = DatasetArtifact(artifact_id="ds", path="data/fixtures/datasets/nope.csv")
+    missing_file = statistical.dataset_statistic_check(
+        "id", claim, gone, _dataset_link(), "mean", 3.4, REPO_ROOT
+    )
+    assert missing_file.inputs["error_kind"] == EK.MISSING_DATA
+
+    no_path = statistical.dataset_statistic_check(
+        "id", claim, DatasetArtifact(artifact_id="ds"), _dataset_link(), "mean", 3.4, REPO_ROOT
+    )
+    assert no_path.inputs["error_kind"] == EK.MISSING_DATA
+
+    # An unusable column is a *data* problem, not a missing file. Both map onto
+    # `failed_missing_data`, but the record keeps them apart.
+    bad_column = statistical.dataset_statistic_check(
+        "id", claim, _measurements(), _dataset_link("column=nope"), "mean", 3.4, REPO_ROOT
+    )
+    assert bad_column.inputs["error_kind"] == EK.UNREADABLE_DATA
+
+
+def test_every_code_error_path_names_its_cause(tmp_path: Path) -> None:
+    claim = make_claim("x", ClaimType.CODE_REPRODUCTION)
+
+    def run(artifact: CodeArtifact, link: EvidenceLink, **kw) -> str:
+        check = code_execution.code_execution_check(
+            "id", claim, artifact, link, {}, tmp_path, **kw
+        )
+        assert check.status is ST.ERROR
+        return check.inputs["error_kind"]
+
+    artifact, link = _script(tmp_path, "pass")
+    assert run(artifact.model_copy(update={"path": None}), link) == EK.MISSING_CODE
+    assert run(artifact.model_copy(update={"path": "gone.py"}), link) == EK.MISSING_CODE
+    # A path escaping the repository is refused by the loader, and is still "missing".
+    assert run(artifact.model_copy(update={"path": "../escape.py"}), link) == EK.MISSING_CODE
+
+    timed_out = _result(exit_code=None, timed_out=True)
+    assert run(artifact, link, runner=FakeRunner(timed_out)) == EK.EXECUTION_TIMEOUT
+    crashed = _result(exit_code=2, stderr="Traceback")
+    assert run(artifact, link, runner=FakeRunner(crashed)) == EK.NONZERO_EXIT
+
+    class BrokenRunner:
+        name = "broken"
+
+        def run(self, script: Path, timeout: float) -> code_execution.ExecutionResult:
+            raise code_execution.SandboxError("bootstrap did not run")
+
+    assert run(artifact, link, runner=BrokenRunner()) == EK.SANDBOX_FAILURE
+
+
+def test_a_dangling_passage_link_names_its_cause() -> None:
+    claim = make_claim("The method reaches 90% accuracy.")
+    dangling = consistency.evidence_presence_check("id", claim, _passage_link("ghost"), None)
+    assert dangling.inputs["error_kind"] == EK.MISSING_PASSAGE
+
+
+def test_a_passing_check_records_no_error_kind() -> None:
+    claim = make_claim("accuracy of 78.0", expected_value=78.0)
+    assert "error_kind" not in check_table(claim, ACCURACY_TABLE, "row=A,col=accuracy").inputs
+
+
+def test_code_execution_records_what_the_bundle_asked_it_to_print(tmp_path: Path) -> None:
+    # An execution that verified *nothing* is not evidence for the claim, so the check
+    # records the declared expectations on every outcome — including `skipped`.
+    artifact, link = _script(tmp_path, "print('accuracy=0.80')")
+    claim = make_claim("x", ClaimType.CODE_REPRODUCTION)
+    declared = {"stdout_contains": "accuracy=0.80"}
+    ran = code_execution.code_execution_check(
+        "id", claim, artifact, link, declared, tmp_path,
+        runner=FakeRunner(_result(stdout="accuracy=0.80\n")),
+    )
+    assert ran.inputs["declared_expectations"] == ["accuracy=0.80"]
+
+    silent = code_execution.code_execution_check("id", claim, artifact, link, {}, tmp_path)
+    assert silent.inputs["declared_expectations"] == []
+
+    skipped = code_execution.code_execution_check(
+        "id", claim, artifact, link, declared, tmp_path, execute=False
+    )
+    assert skipped.status is ST.SKIPPED
+    assert skipped.inputs["declared_expectations"] == ["accuracy=0.80"]
 
 
 def test_run_checks_emits_no_comparison_for_a_claim_that_asserts_no_relation() -> None:
