@@ -29,6 +29,7 @@ from scientific_claim_verifier.checks import (
     verification,
 )
 from scientific_claim_verifier.evidence import locators
+from scientific_claim_verifier.sandbox import runner as runner_module
 from scientific_claim_verifier.schemas import (
     ArtifactBundle,
     CheckStatus,
@@ -610,28 +611,42 @@ def _result(**kw) -> code_execution.ExecutionResult:
     return code_execution.ExecutionResult(**{**defaults, **kw})
 
 
-def test_subprocess_runner_captures_stdout_and_records_a_portable_command(tmp_path: Path) -> None:
-    (tmp_path / "s.py").write_text("print('metric=1.50')\n", encoding="utf-8")
-    result = code_execution.SubprocessScriptRunner().run(tmp_path / "s.py", 10.0)
-    assert result.ok and result.stdout.strip() == "metric=1.50"
-    # Never the absolute interpreter path: a trace must not depend on the machine.
-    assert result.command == ("python", "s.py")
-    assert sys.executable not in result.command
+def test_the_default_runner_is_the_milestone_6_sandbox() -> None:
+    # The check was written against the `ScriptRunner` protocol, so M6 swapped the
+    # implementation without touching the check. Low-level runner behaviour (temp dir,
+    # env scrubbing, network guard, process-group kill) is pinned in test_sandbox.py.
+    assert code_execution.SandboxScriptRunner is runner_module.SandboxScriptRunner
+    assert code_execution.SandboxScriptRunner.name == "sandbox"
 
 
-def test_subprocess_runner_captures_a_nonzero_exit(tmp_path: Path) -> None:
-    (tmp_path / "s.py").write_text(
-        "import sys; sys.stderr.write('boom'); sys.exit(3)\n", encoding="utf-8"
+def test_code_execution_reports_a_sandbox_failure_as_error_not_a_verdict(tmp_path: Path) -> None:
+    # If the sandbox could not enforce the policy it promised, attributing the script's
+    # number to those conditions would be a lie. The check errors instead.
+    class BrokenRunner:
+        name = "broken"
+
+        def run(self, script: Path, timeout: float) -> code_execution.ExecutionResult:
+            raise code_execution.SandboxError("bootstrap did not run")
+
+    artifact, link = _script(tmp_path, "print('accuracy=0.80')")
+    check = code_execution.code_execution_check(
+        "id", make_claim("x", ClaimType.CODE_REPRODUCTION), artifact, link, {}, tmp_path,
+        runner=BrokenRunner(),
     )
-    result = code_execution.SubprocessScriptRunner().run(tmp_path / "s.py", 10.0)
-    assert (result.exit_code, result.timed_out, result.ok) == (3, False, False)
-    assert "boom" in result.stderr
+    assert check.status is ST.ERROR and "sandbox failed" in (check.notes or "")
 
 
-def test_subprocess_runner_times_out_without_raising(tmp_path: Path) -> None:
-    (tmp_path / "s.py").write_text("import time; time.sleep(30)\n", encoding="utf-8")
-    result = code_execution.SubprocessScriptRunner().run(tmp_path / "s.py", 0.3)
-    assert result.timed_out and result.exit_code is None and not result.ok
+def test_code_execution_records_a_denied_network_attempt(tmp_path: Path) -> None:
+    # A script that reached for the network is not self-contained, even if it then
+    # printed the right number. The attempt reaches the check's record and its notes.
+    artifact, link = _script(tmp_path, "pass")
+    check = code_execution.code_execution_check(
+        "id", make_claim("x", ClaimType.CODE_REPRODUCTION), artifact, link, {}, tmp_path,
+        runner=FakeRunner(_result(stdout="accuracy=0.80\n", network_attempts=("socket.socket",))),
+    )
+    assert check.status is ST.PASS
+    assert check.inputs["network_attempts"] == ["socket.socket"]
+    assert "denied network access" in (check.notes or "")
 
 
 def test_code_execution_runs_a_real_fixture_script_and_parses_the_metric() -> None:
@@ -649,6 +664,9 @@ def test_code_execution_runs_a_real_fixture_script_and_parses_the_metric() -> No
     assert check.status is ST.PASS
     assert check.computed_value == 0.8
     assert check.inputs["exit_code"] == 0 and check.inputs["observable"] == "accuracy"
+    assert check.inputs["runner"] == "sandbox"
+    # The declared entrypoint is documentation; the command derives from `path`.
+    assert check.inputs["command"] == ["python", "compute_accuracy.py"]
 
 
 def test_code_execution_treats_a_crash_as_error_not_failure(tmp_path: Path) -> None:

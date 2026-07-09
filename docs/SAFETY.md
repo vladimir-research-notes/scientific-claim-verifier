@@ -37,12 +37,17 @@ belong in this repository.
 ## Execution safety
 
 The code-execution layer runs **tiny, trusted fixture scripts** in a temporary
-directory with a timeout, captured stdout/stderr/exit-code, and a no-network
-policy. It is **controlled fixture execution for reproducibility**, not a
-security boundary: it provides no hard isolation against adversarial code and
-must never be used to run untrusted code. This limitation is stated wherever
-execution is described. See `docs/LIMITATIONS.md` (from its milestone) and the
-website's Limitations page.
+directory with a scrubbed environment, closed stdin, POSIX resource limits, a
+timeout that kills the whole process group, captured stdout/stderr/exit-code, and
+an in-process guard that denies and records `socket` calls.
+
+It is **controlled fixture execution for reproducibility**, not a security
+boundary. There is no process isolation, no namespace, no seccomp filter, and the
+network guard runs inside the child's own interpreter, so code that means to bypass
+it can. It provides no hard isolation against adversarial code and must never be
+used to run untrusted code. This limitation is stated wherever execution is
+described: `docs/SANDBOX.md` (what is and is not enforced), `docs/CHECKS.md`, the
+module docstrings, and the website's Limitations page.
 
 ## Auditability, not authority
 

@@ -2,18 +2,23 @@
 
 The code-reproduction channel: execute the committed script a claim refers to and
 compare what it prints to what the claim says. Execution goes through the
-:class:`ScriptRunner` protocol; this milestone ships one implementation.
+:class:`~scientific_claim_verifier.sandbox.runner.ScriptRunner` protocol; the
+implementation is the Milestone 6 sandbox.
 
-What this executor is, precisely
---------------------------------
-:class:`SubprocessScriptRunner` runs ``python <script>`` as a child process with a
-wall-clock timeout, ``stdin`` closed, and stdout/stderr/exit-code captured. That is
-all. It does **not** copy the script to a temp directory, scrub the environment,
-restrict the filesystem, or block the network. It is not a security boundary of any
-kind, and the scripts it runs are trusted, committed, stdlib-only fixtures that we
-wrote. Milestone 6 adds the temp working directory, the no-network policy, and the
-trace record **behind this same protocol** — a check written against
-:class:`ScriptRunner` needs no change when it lands.
+Where the script actually runs
+------------------------------
+:class:`~scientific_claim_verifier.sandbox.runner.SandboxScriptRunner` copies the
+script into a fresh temp directory, scrubs the environment down to an allowlist,
+closes stdin, applies POSIX resource limits, installs an in-process guard that makes
+``socket`` calls raise, runs it with a wall-clock timeout, and kills the whole process
+group if that timeout fires. Those are **reproducibility** controls: they exist so
+that a number a script prints came from the script's own contents rather than from
+the machine it ran on. They are **not** a security boundary — the scripts are trusted,
+committed, stdlib-only fixtures we wrote. See ``docs/SANDBOX.md``.
+
+The ``entrypoint`` a task declares (``"python compute_accuracy.py"``) is recorded but
+never parsed or executed; a task file must not be able to name a command to run. The
+runner invokes the current interpreter on the artifact's declared ``path``.
 
 Execution failure is not numeric disagreement
 ----------------------------------------------
@@ -27,25 +32,22 @@ be able to tell them apart.
 
 Determinism
 -----------
-The recorded command is ``("python", "<repo-relative script path>")`` — never the
-absolute interpreter path, which varies per machine and would make traces
-non-reproducible. No duration is recorded here (timing is inherently unstable);
-Milestone 6's trace is where wall-clock facts belong. The child inherits the
-environment except for ``PYTHONHASHSEED=0``, set so that a script iterating a set
-prints the same order on every run.
+The recorded command is ``("python", "<script name>")`` — never the absolute
+interpreter path, which varies per machine and would make traces non-reproducible.
+No duration is recorded here (timing is inherently unstable and belongs in the
+sandbox trace, where it is opt-in). ``PYTHONHASHSEED=0`` and ``TZ=UTC`` are set for
+the child by the sandbox policy, so a script iterating a set or printing a date
+prints the same thing on every run.
 """
 
 from __future__ import annotations
 
-import os
 import re
-import subprocess
-import sys
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
 
 from ..artifacts import loader
+from ..sandbox.policy import DEFAULT_TIMEOUT_SECONDS
+from ..sandbox.runner import ExecutionResult, SandboxError, SandboxScriptRunner, ScriptRunner
 from ..schemas import (
     CheckStatus,
     CheckType,
@@ -56,83 +58,8 @@ from ..schemas import (
 )
 from . import truncate
 
-# Applied when a code artifact declares no ``timeout_seconds``.
-DEFAULT_TIMEOUT_SECONDS = 10.0
-
 # A metric line as the fixture scripts print it: ``accuracy=0.80``.
 _METRIC_LINE_RE = re.compile(r"^\s*([A-Za-z_][\w.]*)\s*=\s*(-?\d+(?:\.\d+)?)\s*$", re.MULTILINE)
-
-
-@dataclass(frozen=True)
-class ExecutionResult:
-    """What running a script produced. ``exit_code`` is ``None`` when it timed out."""
-
-    command: tuple[str, ...]
-    exit_code: int | None
-    stdout: str
-    stderr: str
-    timed_out: bool
-
-    @property
-    def ok(self) -> bool:
-        """True when the script ran to completion and exited zero."""
-        return not self.timed_out and self.exit_code == 0
-
-
-class ScriptRunner(Protocol):
-    """Executes a script and captures its output. Milestone 6 hardens the implementation."""
-
-    name: str
-
-    def run(self, script: Path, timeout: float) -> ExecutionResult:
-        """Run ``script``, returning its captured output. Never raises on script failure."""
-        ...
-
-
-class SubprocessScriptRunner:
-    """The interim runner: a bare child process with a timeout. See the module docstring."""
-
-    name = "subprocess"
-
-    def run(self, script: Path, timeout: float) -> ExecutionResult:
-        # `sys.executable` is used to run under the same interpreter as the tests,
-        # but is recorded as "python" so the trace is machine-independent.
-        interpreter = sys.executable or "python3"
-        command = (interpreter, str(script))
-        environment = {**os.environ, "PYTHONHASHSEED": "0"}
-        try:
-            completed = subprocess.run(  # noqa: S603 — trusted, committed fixture script
-                command,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=script.parent,
-                stdin=subprocess.DEVNULL,
-                env=environment,
-                check=False,
-            )
-        except subprocess.TimeoutExpired as expired:
-            return ExecutionResult(
-                command=("python", script.name),
-                exit_code=None,
-                stdout=_decode(expired.stdout),
-                stderr=_decode(expired.stderr),
-                timed_out=True,
-            )
-        return ExecutionResult(
-            command=("python", script.name),
-            exit_code=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
-            timed_out=False,
-        )
-
-
-def _decode(captured: str | bytes | None) -> str:
-    """Normalize the partial output a timeout hands back."""
-    if captured is None:
-        return ""
-    return captured if isinstance(captured, str) else captured.decode("utf-8", "replace")
 
 
 def parse_observable(stdout: str, metrics: list[str]) -> tuple[str, float] | None:
@@ -176,7 +103,7 @@ def code_execution_check(
     Set ``execute=False`` to record a ``skipped`` check without running anything —
     the escape hatch for an environment where running child processes is unwanted.
     """
-    active = runner or SubprocessScriptRunner()
+    active = runner or SandboxScriptRunner()
     timeout = artifact.timeout_seconds or DEFAULT_TIMEOUT_SECONDS
     inputs: dict = {
         "code_id": artifact.artifact_id,
@@ -216,7 +143,13 @@ def code_execution_check(
     if not script.is_file():
         return outcome(CheckStatus.ERROR, f"script not found: {artifact.path}")
 
-    result = active.run(script, timeout)
+    try:
+        result = active.run(script, timeout)
+    except SandboxError as exc:
+        # The sandbox could not enforce the policy it promised. Reporting the script's
+        # output anyway would attribute a number to conditions that never held.
+        return outcome(CheckStatus.ERROR, f"sandbox failed: {exc}")
+
     inputs |= {
         "command": list(result.command),
         "exit_code": result.exit_code,
@@ -224,14 +157,20 @@ def code_execution_check(
         "stderr": truncate(result.stderr),
         "timed_out": result.timed_out,
     }
+    # A script that reached for the network is not self-contained, whether or not it
+    # then produced the right number. Recorded on every outcome below.
+    tainted = ""
+    if result.network_attempts:
+        inputs["network_attempts"] = list(result.network_attempts)
+        tainted = f"; the sandbox denied network access to {', '.join(result.network_attempts)}"
 
     if result.timed_out:
-        return outcome(CheckStatus.ERROR, f"script timed out after {timeout:g}s")
+        return outcome(CheckStatus.ERROR, f"script timed out after {timeout:g}s{tainted}")
     if not result.ok:
         return outcome(
             CheckStatus.ERROR,
             f"script exited {result.exit_code}; no observable was produced "
-            f"(stderr: {truncate(result.stderr.strip(), 200) or 'empty'})",
+            f"(stderr: {truncate(result.stderr.strip(), 200) or 'empty'}){tainted}",
         )
 
     observable = parse_observable(result.stdout, claim.metrics)
@@ -243,7 +182,7 @@ def code_execution_check(
     if missing:
         return outcome(
             CheckStatus.FAIL,
-            f"script ran cleanly but stdout lacks the declared expectation(s) {missing}",
+            f"script ran cleanly but stdout lacks the declared expectation(s) {missing}{tainted}",
             computed_value=computed,
         )
 
@@ -252,7 +191,8 @@ def code_execution_check(
         CheckStatus.PASS,
         f"script exited 0 and printed the declared observable"
         f"{f' {declared}' if declared else ''}"
-        f"{f'; parsed {observable[0]}={observable[1]:g}' if observable else ''}",
+        f"{f'; parsed {observable[0]}={observable[1]:g}' if observable else ''}"
+        f"{tainted}",
         computed_value=computed,
     )
 
@@ -260,9 +200,10 @@ def code_execution_check(
 __all__ = [
     "DEFAULT_TIMEOUT_SECONDS",
     "ExecutionResult",
+    "SandboxError",
+    "SandboxScriptRunner",
     "ScriptRunner",
-    "SubprocessScriptRunner",
+    "code_execution_check",
     "parse_observable",
     "stdout_expectations",
-    "code_execution_check",
 ]

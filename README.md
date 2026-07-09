@@ -16,11 +16,12 @@ is a small but real reproducibility tool and benchmark platform. See
 [`docs/PLAN.md`](docs/PLAN.md) for the full plan and
 [`site/`](site/index.html) for the project website.
 
-> **Build status:** Milestones 0–5 complete. The typed schema, the task format and
-> its validator, rule-based claim extraction, the evidence linker, and the
-> deterministic verification checks are in place: a claim can be extracted, linked
-> to the exact cell/column/script that bears on it, and checked against those
-> artifacts. Scoring (support labels, failure modes) is Milestone 7. The remaining
+> **Build status:** Milestones 0–6 complete. The typed schema, the task format and
+> its validator, rule-based claim extraction, the evidence linker, the deterministic
+> verification checks, and the reproducibility sandbox are in place: a claim can be
+> extracted, linked to the exact cell/column/script that bears on it, checked against
+> those artifacts, and its script executed under a recorded policy that emits a JSONL
+> trace. Scoring (support labels, failure modes) is Milestone 7. The remaining
 > subsystems are built milestone by milestone — see below. This README is upgraded
 > to portfolio quality in Milestone 12.
 
@@ -65,7 +66,7 @@ task (YAML/JSON)
   -> claims      extract (rule-based / mock LLM) -> normalize
   -> evidence    link passages / tables / datasets / code refs
   -> checks      statistical · table recompute · figure recompute · code execution · consistency
-  -> sandbox     temp dir · timeout · no-network policy · stdout/stderr/exit capture
+  -> sandbox     temp dir · scrubbed env · timeout · rlimits · network guard · JSONL trace
   -> scoring     support label · reproducibility status · failure mode
   -> report      Markdown (+ optional HTML)  <-  JSONL trace
 ```
@@ -81,6 +82,7 @@ claimverifier validate-fixtures tasks/
 claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml --out results/runs/
 claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml --no-declared-source
 claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
+claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.yaml --out results/runs/
 ```
 
 `link-evidence` reports the ranked passage candidates, the emitted evidence links
@@ -97,6 +99,14 @@ computed checks as separate blocks and **assigns no verdict** — the support la
 is inferred from the checks by scoring (M7). On `contradicted_f1` the passage check
 passes and the table check fails, which is the point. See
 [`docs/CHECKS.md`](docs/CHECKS.md).
+
+`run-sandbox` executes a task's fixture scripts under a recorded policy — fresh temp
+directory, environment scrubbed to an allowlist, closed stdin, POSIX resource limits,
+a timeout that kills the whole process group, and an in-process guard that denies and
+**records** `socket` calls — then writes a JSONL trace whose first event is the policy
+itself. Those are reproducibility controls, not security controls: it runs trusted,
+committed fixture scripts and is **not a sandbox for untrusted code**. See
+[`docs/SANDBOX.md`](docs/SANDBOX.md).
 
 Target (each lands with its subsystem — see the milestones):
 

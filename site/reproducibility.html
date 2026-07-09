@@ -29,7 +29,7 @@
   <p class="lede">Scoring maps the set of checks onto three explicit vocabularies: a support
   label (is the claim backed?), a reproducibility status (did the computation reproduce?), and
   a failure mode (if not, why?).</p>
-  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status done">checks that feed scoring live in Milestone 5</span> &nbsp; <span class="status planned">scoring logic lands in Milestone 7</span></p>
+  <p><span class="status done">status: vocabularies typed as <code>StrEnum</code>s in Milestone 1</span> &nbsp; <span class="status done">checks that feed scoring live in Milestone 5</span> &nbsp; <span class="status done">the sandbox that reproduces lands in Milestone 6</span> &nbsp; <span class="status planned">scoring logic lands in Milestone 7</span></p>
 
   <h2>Support labels</h2>
   <table>
@@ -69,6 +69,54 @@
   threshold is ±0.05; <code>0.80</code> gives ±0.005; a count is exact. Every check records the
   threshold it applied next to the signed difference, and a task or a command-line flag may
   override it.</p>
+
+  <h2>The reproducibility sandbox</h2>
+  <p>A script's number is not a result until you know what produced it. Milestone 6 runs every
+  fixture script under a <strong>recorded policy</strong>, and the policy is the first event in the
+  trace — before the number.</p>
+  <pre><code>claimverifier run-sandbox --task tasks/code_reproduction/recompute_accuracy.yaml --out results/runs/</code></pre>
+  <table>
+    <tr><th>Control</th><th>Mechanism</th><th>What it buys</th></tr>
+    <tr><td>Fresh working directory</td><td>script copied into an empty temp dir; removed after</td><td>it cannot read a repo file it never declared</td></tr>
+    <tr><td>Scrubbed environment</td><td>allowlist: <code>LANG</code>, <code>LC_ALL</code>, <code>LC_CTYPE</code>, <code>PATH</code>, <code>SYSTEMROOT</code></td><td>no host token, proxy, or <code>PYTHONPATH</code> reaches the child</td></tr>
+    <tr><td>Deterministic environment</td><td><code>PYTHONHASHSEED=0</code>, <code>TZ=UTC</code>, no bytecode, no user site</td><td>set order, dates, and imports are stable</td></tr>
+    <tr><td>Wall-clock timeout</td><td>parent-side, then <code>killpg(SIGKILL)</code></td><td>a script that spawned children does not outlive it</td></tr>
+    <tr><td>Resource limits</td><td><code>RLIMIT_CPU</code>, <code>RLIMIT_AS</code>, <code>RLIMIT_FSIZE</code>, <code>RLIMIT_NOFILE</code> before <code>exec</code></td><td>a runaway is stopped by the kernel, not by luck</td></tr>
+    <tr><td>Network guard</td><td>in-process <code>socket</code> monkey-patch</td><td>accidental network use raises <strong>and is recorded</strong></td></tr>
+  </table>
+
+  <div class="callout warn"><strong>These are reproducibility controls, not security controls.</strong>
+  There is no process isolation, no namespace, no seccomp filter. The network guard lives inside the
+  child's own interpreter, so code that means to bypass it can. It catches accidents by trusted
+  fixture code; it does not contain hostile code. See <a href="limitations.html">Limitations</a> and
+  <code>docs/SANDBOX.md</code>.</div>
+
+  <h3>Recording an attempt, not just refusing it</h3>
+  <p>The guard writes the denied call to a log <em>before</em> it raises. A script that catches the
+  exception and carries on still leaves the attempt in <code>network_attempts</code>, so a
+  reproduction that reached for the network cannot look self-contained in the trace. And because
+  <code>site</code> silently swallows exceptions raised from <code>sitecustomize</code>, a guard that
+  <em>failed to install</em> would leave the network open while the trace said
+  <code>blocked</code> — so the bootstrap writes a marker naming the policy it applied, and the
+  runner refuses to return a result without it. The check then reports <code>error</code>, never a
+  verdict about the claim's number: the conditions that number would be attributed to never held.</p>
+
+  <h3>The trace, and the one value it omits</h3>
+  <p>Two runs of the same script produce <strong>byte-identical</strong> JSONL. The command is
+  recorded as <code>("python", "compute_accuracy.py")</code> rather than the machine's interpreter
+  path; the random temp path is replaced with <code>&lt;sandbox&gt;</code> in captured output; file
+  and attempt lists are sorted; the policy record holds no absolute paths.</p>
+  <p>Wall-clock duration is the exception, and it is <strong>opt-in</strong> (<code>--with-timing</code>).
+  It is the one fact about an execution that cannot be reproduced, and recording it by default would
+  make every trace differ from every other — the diff between two runs would stop being a signal.</p>
+  <pre><code>{"data": {"policy": {...}}, "kind": "sandbox.policy", "seq": 0}
+{"data": {"command": ["python", "compute_accuracy.py"], "script_hash": "sha256:9bc64b75…"}, "kind": "sandbox.exec", "seq": 1}
+{"data": {"stderr": "", "stdout": "accuracy=0.80\n"}, "kind": "sandbox.output", "seq": 2}
+{"data": {"exit_code": 0, "network_attempts": [], "ok": true, "timed_out": false}, "kind": "sandbox.result", "seq": 3}</code></pre>
+  <p>Swapping Milestone 5's bare <code>subprocess.run</code> for this sandbox moved
+  <strong>no verdict</strong>: the check table is still 16 pass / 1 fail / 1 inconclusive over the
+  seven fixtures. That is the point of having written the check against a runner protocol. See
+  <a href="results.html">Results</a>.</p>
 
   <h2>Failure modes</h2>
   <p>When a claim is not cleanly supported/reproduced, the result carries a

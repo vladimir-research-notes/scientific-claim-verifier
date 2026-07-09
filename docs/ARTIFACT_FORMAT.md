@@ -159,5 +159,7 @@ is not).
 
 **Milestone 2 complete.** The loader, hasher, and validator are covered by
 `tests/test_fixtures.py` and `tests/test_hashing.py`. Extraction (M3), evidence
-linking (M4), and checks (M5) consume these loaded tasks; the sandbox (M6) and
-scoring (M7) follow in their own milestones.
+linking (M4), checks (M5), and the sandbox (M6) consume these loaded tasks; scoring
+(M7) follows in its own milestone. A `CodeArtifact`'s `entrypoint` is **declarative**:
+it is recorded and hashed alongside the script, but never parsed or executed — the
+sandbox invokes the current interpreter on the declared `path` (`docs/SANDBOX.md`).

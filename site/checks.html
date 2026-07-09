@@ -29,7 +29,7 @@
   <p class="lede">Checks are deterministic and transparent. Each takes a claim plus its linked
   artifacts and emits a <code>VerificationCheck</code> record with inputs, computed value,
   expected value, tolerance, pass/fail, and notes.</p>
-  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status done">evidence linking live in Milestone 4</span> &nbsp; <span class="status done">checks live in Milestone 5 — 18 checks over 7 fixtures</span> &nbsp; <span class="status planned">sandbox hardening in Milestone 6</span></p>
+  <p><span class="status done"><code>VerificationCheck</code> / <code>CheckType</code> typed in Milestone 1</span> &nbsp; <span class="status done">evidence linking live in Milestone 4</span> &nbsp; <span class="status done">checks live in Milestone 5 — 18 checks over 7 fixtures</span> &nbsp; <span class="status done">sandbox landed in Milestone 6 — no verdict moved</span></p>
 
   <h2>Before a check runs: evidence linking</h2>
   <p>A check cannot run until something has said <em>where to look</em>. That is the evidence
@@ -131,12 +131,21 @@
 
   <h2>Code execution</h2>
   <p>The code-execution check runs <strong>tiny, trusted fixture scripts</strong> committed to this
-  repository. The Milestone 5 executor is a bare child process with a wall-clock timeout, closed
-  stdin, and captured stdout/stderr/exit-code. It does <strong>not</strong> copy the script to a temp
-  directory, scrub the environment, restrict the filesystem, or block the network — it is
-  <strong>not a security boundary of any kind</strong>. Milestone 6 adds the temp working directory,
-  the no-network policy, and the trace record behind the same <code>ScriptRunner</code> protocol, so
-  no check changes when it lands. See <a href="limitations.html">Limitations</a>.</p>
+  repository, through the Milestone 6 <a href="reproducibility.html">sandbox</a>: a fresh temp
+  working directory, an environment scrubbed to an allowlist, closed stdin, POSIX resource limits
+  applied before <code>exec</code>, a wall-clock timeout that kills the whole process group, and an
+  in-process guard that makes <code>socket</code> calls raise <strong>and records them</strong>. The
+  full policy is written into the run's trace, ahead of the number.</p>
+  <p>Those are <strong>reproducibility</strong> controls, not security controls: no process
+  isolation, no namespace, no seccomp filter, and a network guard that lives inside the child's own
+  interpreter. It is <strong>not a security boundary of any kind</strong>. See
+  <a href="limitations.html">Limitations</a>.</p>
+  <p>Two consequences reach the check. A script that <em>reached for</em> the network is not
+  self-contained even if it printed the right number, so the denied calls land in the check's
+  <code>inputs</code> and its notes. And if the sandbox could not <em>enforce</em> the policy it
+  promised, the check is <code>error</code> — reporting the output anyway would attribute a number to
+  conditions that never held. The artifact's declared <code>entrypoint</code> is recorded but never
+  parsed or executed: a task file must not be able to name a command to run.</p>
   <p>Execution failure is not numeric disagreement: a timeout or a non-zero exit is
   <code>error</code>, never <code>fail</code>, because a script that will not run tells you nothing
   about the claim's number. Whether the number it printed <em>matches</em> is a separate
@@ -154,8 +163,10 @@
   <p>Every check is a pure function of its inputs apart from code execution, which starts a child
   process. No wall clock, no RNG, and no absolute filesystem paths reach a check's recorded output:
   the command is recorded as <code>("python", "gc_content.py")</code>, never the machine's
-  interpreter path, and no duration is recorded (timing belongs in the Milestone 6 trace). Floats
-  are rounded to 12 decimal places, so <code>40.8 / 12</code> is written <code>3.4</code> rather than
+  interpreter path; the sandbox's random temp path is replaced with <code>&lt;sandbox&gt;</code> in
+  captured output; and no duration is recorded (timing lives in the sandbox trace, where it is
+  opt-in). The child runs with <code>PYTHONHASHSEED=0</code> and <code>TZ=UTC</code>. Floats are
+  rounded to 12 decimal places, so <code>40.8 / 12</code> is written <code>3.4</code> rather than
   <code>3.4000000000000004</code> — far below any tolerance in play, so rounding can never flip a
   verdict. Checks are emitted in a fixed type order with ids numbered per type.</p>
 </main>

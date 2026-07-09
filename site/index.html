@@ -31,7 +31,7 @@
   reproduction, classifies failure modes, and produces an <strong>auditable report</strong>
   backed by a JSONL trace.</p>
 
-  <p><span class="status done">status: Milestone 5 complete — verification checks</span> &nbsp; <span class="status planned">Milestone 6 next: reproducibility sandbox</span></p>
+  <p><span class="status done">status: Milestone 6 complete — reproducibility sandbox</span> &nbsp; <span class="status planned">Milestone 7 next: scoring &amp; failure modes</span></p>
 
   <h2>Why not just summarize?</h2>
   <p>A summary tells you what a paper <em>says</em>. It does not tell you whether a specific
@@ -64,14 +64,14 @@
   -> claims      extract (rule-based / mock LLM) -> normalize
   -> evidence    link passages / tables / datasets / code refs
   -> checks      statistical · table recompute · figure recompute · code execution · consistency
-  -> sandbox     temp dir · timeout · no-network policy · stdout/stderr/exit capture
+  -> sandbox     temp dir · scrubbed env · timeout · rlimits · network guard · JSONL trace
   -> scoring     support label · reproducibility status · failure mode
   -> report      Markdown (+ optional HTML)  <-  JSONL trace</code></pre>
 
   <h2>Running it today</h2>
   <p>The package (<code>scientific_claim_verifier</code>) and the <code>claimverifier</code>
   console script are runnable and dependency-light (runtime deps: <code>pydantic</code>,
-  <code>pyyaml</code>). Six commands are live now; the remaining verification commands come
+  <code>pyyaml</code>). Seven commands are live now; the remaining verification commands come
   online with their subsystems.</p>
   <pre><code>pip install -e .                 # editable install
 claimverifier version
@@ -80,6 +80,7 @@ claimverifier validate-fixtures  # validate task fixtures under tasks/
 claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml
 claimverifier link-evidence  --task tasks/table_claims/accuracy_improvement.yaml
 claimverifier run-checks     --task tasks/table_claims/contradicted_f1.yaml
+claimverifier run-sandbox    --task tasks/code_reproduction/recompute_accuracy.yaml
 python3 -m pytest -q             # CPU-only, offline tests</code></pre>
   <p>Extraction prints the recovered fields, the rules that fired, and a comparison against
   the task's gold target — the audit trail is the product, not a side effect:</p>
@@ -127,6 +128,31 @@ Inference : NOT produced by this stage.</code></pre>
   only interesting fact about this claim. The <code>0.05</code> tolerance was not chosen either —
   the claim wrote <code>91.0</code>, to one decimal place, so anything rounding to 91.0 would have
   matched. See <a href="checks.html">Checks</a>.</p>
+  <p>Where a claim is about a <em>script</em>, the script runs — under a recorded policy, and the
+  policy is printed before the number, because <code>accuracy=0.80</code> is not a result until you
+  know what produced it:</p>
+  <pre><code>$ claimverifier run-sandbox --task tasks/code_reproduction/recompute_accuracy.yaml
+
+Content hash    : sha256:9bc64b75db9d64c24eb78e3696cd5e1679771ac83a74062733d25f65800a3d9a
+Command         : python compute_accuracy.py
+
+Policy (recorded verbatim into the trace):
+  timeout       : 10.0s
+  network       : blocked — in-process socket guard; cooperative, bypassable, not a boundary
+  working dir   : fresh temp dir, removed after the run
+  env allowlist : LANG, LC_ALL, LC_CTYPE, PATH, SYSTEMROOT
+  rlimits       : RLIMIT_AS=2147483648, RLIMIT_CPU=11, RLIMIT_FSIZE=8388608, RLIMIT_NOFILE=256
+  isolation     : none — controlled fixture execution, not a security boundary
+
+Outcome         : exited 0
+Network attempts: none
+
+stdout:
+  accuracy=0.80</code></pre>
+  <p>The guard <em>records</em> a denied socket call before refusing it, so a script that catches the
+  exception still cannot look self-contained. And the guard's installation is verified rather than
+  assumed — <code>site</code> would otherwise swallow a broken guard and leave the network open while
+  the trace said <code>blocked</code>. See <a href="reproducibility.html">Reproducibility</a>.</p>
   <p>Tests import the package straight from <code>src/</code> (no install required) and never touch
   the network. See <a href="milestones.html">Milestones</a> for what each build step adds.</p>
 

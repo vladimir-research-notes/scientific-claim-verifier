@@ -58,19 +58,36 @@
 
   <h2>The sandbox is not a security boundary</h2>
   <div class="callout warn">The code-execution layer runs <strong>tiny, trusted fixture
-  scripts</strong> committed to this repository. As shipped in Milestone 5 it is a bare child
-  process with a wall-clock timeout, closed stdin, and captured stdout/stderr/exit-code — it does
-  <strong>not</strong> copy the script to a temp directory, scrub the environment, restrict the
-  filesystem, or block the network (Milestone 6 adds the temp dir and the no-network policy behind
-  the same runner protocol). Even then it provides no process-isolation or resource-limit guarantees
-  against adversarial code. It is controlled fixture execution for reproducibility —
+  scripts</strong> committed to this repository. As shipped in Milestone 6 it copies the script to a
+  fresh temp directory, scrubs the environment down to an allowlist, closes stdin, applies POSIX
+  resource limits before <code>exec</code>, kills the whole process group on timeout, and installs an
+  in-process guard that denies and records <code>socket</code> calls. Every one of those is a
+  <strong>reproducibility</strong> control — they exist so a number a script printed came from the
+  script rather than from the machine. None of them is isolation: there is no namespace, no seccomp
+  filter, no chroot, no user separation. It is controlled fixture execution for reproducibility —
   <strong>not</strong> a production-grade or untrusted-code sandbox. Do not run untrusted code
   through it.</div>
+
+  <h2>The network guard is Python-level</h2>
+  <p>It patches <code>socket</code> inside the child's interpreter, so it covers the script,
+  everything the script imports, and — via <code>PYTHONPATH</code> — any <em>Python</em> subprocess
+  the script spawns, whose attempts land in the same log. It does <strong>not</strong> cover
+  <code>ctypes</code>, a raw syscall, a reference captured before it installed, or a
+  <strong>non-Python</strong> subprocess: <code>curl</code> has its own interpreter and needs no
+  <code>PATH</code> to be found. No environment variable fixes that; a network namespace or a seccomp
+  filter would, and this layer provides neither. The guard catches accidental network use by trusted
+  code, and records it. It does not contain adversaries.</p>
 
   <h2>Reproduction is lightweight</h2>
   <p>"Reproduction" here means recomputing a statistic or running a tiny script and comparing to
   an expected value within tolerance. It does not attempt full environment reconstruction,
   dependency resolution, or long-running training.</p>
+  <p>The sandbox copies <strong>only the script</strong>, so a fixture must embed its own data;
+  staging declared inputs is untouched work, not a hidden feature. Nothing pins the interpreter —
+  the script runs under whichever Python invoked it, and the trace does not record the version, so
+  two machines can disagree. Captured output is recorded verbatim apart from the sandbox path, which
+  means a <em>failing</em> script's traceback embeds the host's stdlib paths: traces of failing runs
+  are reproducible per machine, not across machines. Redacting the traceback would be worse.</p>
 
   <h2>No paid model in the loop by default</h2>
   <p>The default path is fully deterministic and free. Optional LLM adapters exist but are

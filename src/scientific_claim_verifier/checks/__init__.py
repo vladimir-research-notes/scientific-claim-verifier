@@ -51,16 +51,16 @@ import math
 from dataclasses import dataclass
 
 from ..claims.extraction import extract_numbers
+
+# Capping a child process's captured output is the sandbox's concern (Milestone 6).
+# Re-exported here so a check has one import for the helpers it records with.
+from ..sandbox.policy import MAX_CAPTURE_CHARS, truncate
 from ..schemas import CheckType, ComparisonOperator, ScientificClaim
 
 # Recorded floats are rounded to this many decimal places so that a value such as
 # ``40.8 / 12 = 3.4000000000000004`` is written as ``3.4``. Well below every
 # tolerance the checks apply, so rounding can never flip a verdict.
 STABLE_DIGITS = 12
-
-# Longest stdout/stderr excerpt kept in a check's ``inputs``. Fixture scripts print
-# one line; the cap bounds a trace if one ever does not.
-MAX_CAPTURE_CHARS = 2000
 
 
 @dataclass(frozen=True)
@@ -92,13 +92,6 @@ FLOAT_NOISE = Tolerance(abs_tol=1e-9, rel_tol=1e-9)
 def stable(value: float) -> float:
     """Round ``value`` for recording. See :data:`STABLE_DIGITS`."""
     return round(value, STABLE_DIGITS)
-
-
-def truncate(text: str, limit: int = MAX_CAPTURE_CHARS) -> str:
-    """Clip captured output, marking the elision so nothing looks complete when it is not."""
-    if len(text) <= limit:
-        return text
-    return text[:limit] + f"… [truncated, {len(text)} chars total]"
 
 
 def decimal_places(raw: str) -> int:

@@ -29,7 +29,53 @@
   <p class="lede">This page reports measured outcomes. Every number is reproducible offline on a
   single CPU with the command shown beside it. Numbers that do not exist yet are marked pending,
   never estimated.</p>
-  <p><span class="status done">status: Milestones 3–5 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+  <p><span class="status done">status: Milestones 3–6 measured</span> &nbsp; <span class="status planned">smoke suite pending — Milestone 8</span></p>
+
+  <h2>Sandbox reproduction (Milestone 6)</h2>
+  <pre><code>python3 -m pytest tests/test_sandbox.py -q            # 61 tests
+claimverifier run-sandbox --task &lt;task.yaml&gt; --out results/runs/</code></pre>
+  <p>Both committed code fixtures execute under the recorded policy and reproduce the metric their
+  claim states — offline, with the network guard installed, in a temp directory they cannot escape
+  upward from.</p>
+  <table>
+    <tr><th>Task</th><th>Script</th><th>stdout</th><th>Exit</th><th>Network attempts</th><th>Files written</th></tr>
+    <tr><td><code>recompute_accuracy</code></td><td><code>compute_accuracy.py</code></td><td><code>accuracy=0.80</code></td><td>0</td><td>none</td><td>none</td></tr>
+    <tr><td><code>gc_content</code></td><td><code>gc_content.py</code></td><td><code>gc_content=0.50</code></td><td>0</td><td>none</td><td>none</td></tr>
+  </table>
+  <p>The Milestone 5 check table below is <strong>unchanged</strong> under the new runner, and that
+  is the result worth reporting: swapping a bare <code>subprocess.run</code> for a policy-enforcing
+  sandbox moved no verdict. The <code>ScriptRunner</code> protocol held, and
+  <code>code_execution</code> changed only its default runner.</p>
+
+  <p>Each guard below is exercised by a test that fires it. These are
+  <a href="reproducibility.html">reproducibility controls</a>, not a security boundary.</p>
+  <table>
+    <tr><th>Guard</th><th>Demonstrated by</th></tr>
+    <tr><td>Fresh temp <code>cwd</code>, removed after</td><td>a script sees only itself; <code>pyproject.toml</code> is not reachable</td></tr>
+    <tr><td>Environment allowlist</td><td>a parent variable is <code>absent</code> in the child; <code>PYTHONHASHSEED=0</code>, <code>TZ=UTC</code></td></tr>
+    <tr><td>Network guard denies <em>and records</em></td><td><code>socket.socket()</code> raises; the attempt survives a script that catches it</td></tr>
+    <tr><td>Guard integrity is verified</td><td>a <code>sitecustomize</code> that raises → <code>SandboxError</code>, not a silently open network</td></tr>
+    <tr><td>Timeout kills the process <em>group</em></td><td>a grandchild spawned by the script is reaped with it</td></tr>
+    <tr><td><code>RLIMIT_AS</code></td><td><code>bytearray(3 GiB)</code> → <code>MemoryError</code></td></tr>
+    <tr><td><code>RLIMIT_CPU</code></td><td><code>while True: pass</code> → killed by signal at 1 CPU-second, <code>timed_out=False</code></td></tr>
+    <tr><td>Trace determinism</td><td>two runs of one script → byte-identical JSONL</td></tr>
+  </table>
+
+  <div class="callout"><strong>The result that took two attempts.</strong> The first network guard
+  replaced <code>socket.socket</code> with a <em>function</em>. <code>ssl.py</code> executes
+  <code>class SSLSocket(socket)</code> at import time, so <code>import urllib.request</code> died with
+  <code>TypeError: function() argument 'code' must be code, not str</code> — blocking the network by
+  accident, in a way that would have confused anyone whose script merely imported
+  <code>http.client</code>. The guard now installs a raising <strong>subclass</strong>, so the import
+  succeeds and the denial happens at <code>socket.create_connection</code>, where the connection is
+  actually attempted. Both behaviours are test-pinned.</div>
+
+  <p><strong>How to read this.</strong> Two fixtures is not a reproducibility benchmark. Both scripts
+  are stdlib-only, embed their own data, take no arguments, and were written by the same agent as the
+  sandbox that runs them. What the table shows is that the controls hold and cost nothing. The
+  interesting failures are the guard rows, not the two passes. Wall-clock duration is measured
+  (≈30 ms per script) and deliberately kept out of the trace unless <code>--with-timing</code> is
+  passed — it is the only value in an execution record that cannot be reproduced.</p>
 
   <h2>Verification checks (Milestone 5)</h2>
   <pre><code>python3 -m pytest tests/test_checks.py -q     # 112 tests
@@ -171,10 +217,13 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td>M3</td><td>36</td><td>102</td></tr>
     <tr><td>M4</td><td>69</td><td>171</td></tr>
     <tr><td>M5</td><td>114</td><td>285</td></tr>
+    <tr><td>M6</td><td>61</td><td>346</td></tr>
   </table>
   <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
-  anywhere in the default path. Milestone 5's tests execute two committed, stdlib-only fixture
-  scripts as child processes — local, harmless, and offline. <code>ruff check .</code> passes.</p>
+  anywhere in the default path. Milestones 5 and 6 execute committed, stdlib-only fixture scripts
+  (plus a few written by the tests themselves) as child processes — local, harmless, and offline.
+  The socket tests either construct a socket or are refused before one exists; none connects to
+  anything. <code>ruff check .</code> passes.</p>
 
   <h2>Smoke suite (pending)</h2>
   <p>The smoke suite will contain 8–15 verification tasks across the task families and run

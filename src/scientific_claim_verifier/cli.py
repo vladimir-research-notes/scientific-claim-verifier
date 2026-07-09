@@ -10,12 +10,14 @@ Commands online so far:
 - ``claimverifier extract-claims``     — rule-based claim extraction (M3).
 - ``claimverifier link-evidence``      — evidence linking (M4).
 - ``claimverifier run-checks``         — deterministic verification checks (M5).
+- ``claimverifier run-sandbox``        — controlled fixture execution + trace (M6).
 
-``link-evidence`` and ``run-checks`` are additions beyond the ``docs/PLAN.md``
-section 10 contract: that section lists the end-to-end verbs, but a per-stage
-command keeps each subsystem independently runnable and auditable. ``run-checks``
-is not ``verify``: it computes checks and stops there. ``verify`` implies a support
-label, which is inferred by scoring (M7), and it is registered in that milestone.
+``link-evidence``, ``run-checks``, and ``run-sandbox`` are additions beyond the
+``docs/PLAN.md`` section 10 contract: that section lists the end-to-end verbs, but a
+per-stage command keeps each subsystem independently runnable and auditable.
+``run-checks`` is not ``verify``: it computes checks and stops there. ``verify``
+implies a support label, which is inferred by scoring (M7), and it is registered in
+that milestone.
 
 The remaining verification commands advertised in ``docs/PLAN.md`` section 10
 (``verify``, ``run-suite``, ``report``) come online in their respective
@@ -31,6 +33,7 @@ from . import __version__, envcheck
 from .artifacts import validation
 from .checks import verification
 from .claims import extraction, linking
+from .sandbox import runner
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -43,8 +46,8 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         epilog=(
             "Live commands: `check-env`, `version`, `validate-fixtures`, "
-            "`extract-claims`, `link-evidence`, `run-checks`; the remaining "
-            "verification commands land in later milestones (see docs/PLAN.md)."
+            "`extract-claims`, `link-evidence`, `run-checks`, `run-sandbox`; the "
+            "remaining verification commands land in later milestones (see docs/PLAN.md)."
         ),
     )
     parser.add_argument(
@@ -92,6 +95,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verification.add_check_arguments(checks)
 
+    sandbox = subparsers.add_parser(
+        "run-sandbox",
+        help="Execute a task's fixture scripts in the controlled sandbox (offline).",
+    )
+    runner.add_sandbox_arguments(sandbox)
+
     return parser
 
 
@@ -125,6 +134,16 @@ def main(argv: list[str] | None = None) -> int:
             execute=not args.no_execute,
             abs_tol=args.abs_tol,
             rel_tol=args.rel_tol,
+        )
+    if args.command == "run-sandbox":
+        return runner.sandbox_and_report(
+            args.task,
+            out_dir=args.out,
+            as_json=args.json,
+            code_id=args.code_id,
+            timeout=args.timeout,
+            allow_network=args.allow_network,
+            with_timing=args.with_timing,
         )
 
     # No subcommand: show help. Treated as success so `claimverifier` alone is

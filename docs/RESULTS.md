@@ -12,7 +12,7 @@ that do not exist yet are marked pending, not estimated.
 | Claim extraction vs. gold | M3 | measured below |
 | Evidence linking vs. gold | M4 | measured below |
 | Verification checks | M5 | measured below |
-| Sandbox reproduction | M6 | pending |
+| Sandbox reproduction | M6 | measured below |
 | Support labels / failure modes | M7 | pending |
 | Smoke suite (8–15 tasks, end to end) | M8 | pending |
 
@@ -282,10 +282,104 @@ Task gold       : contradicted / not_applicable / table_cell_mismatch
 The tolerance of `0.05` was not chosen: the claim wrote `91.0`, one decimal place,
 so anything rounding to 91.0 would have matched. See `docs/CHECKS.md`.
 
+## M6 — sandbox reproduction
+
+```bash
+python3 -m pytest tests/test_sandbox.py -q          # 61 tests
+claimverifier run-sandbox --task <task.yaml> --out results/runs/
+```
+
+Both committed code fixtures execute under the recorded policy and reproduce the
+metric their claim states — offline, with the network guard installed, in a temp
+directory they cannot escape upward from.
+
+| Task | Script | stdout | Exit | Network attempts | Files written |
+| --- | --- | --- | --- | --- | --- |
+| `recompute_accuracy` | `compute_accuracy.py` | `accuracy=0.80` | 0 | none | none |
+| `gc_content` | `gc_content.py` | `gc_content=0.50` | 0 | none | none |
+
+The M5 check table is **unchanged** under the new runner — 18 checks over 7 fixtures,
+16 pass / 1 fail / 1 inconclusive — which is the result worth reporting: swapping a
+bare `subprocess.run` for a policy-enforcing sandbox moved no verdict. The
+`ScriptRunner` protocol M5 introduced held, and `code_execution` changed only its
+default runner.
+
+### What the sandbox actually enforces
+
+Each row is a guard, and the test that fires it. These are **reproducibility**
+controls; none of them is a security boundary (`docs/SANDBOX.md`).
+
+| Guard | Demonstrated by |
+| --- | --- |
+| Fresh temp `cwd`, removed after | a script sees only itself; `pyproject.toml` is not reachable |
+| Environment allowlist | a parent variable is `absent` in the child; `PYTHONHASHSEED=0`, `TZ=UTC` |
+| Network guard denies + **records** | `socket.socket()` raises; the attempt survives a script that catches it |
+| Guard integrity is verified | a `sitecustomize` that raises → `SandboxError`, not a silent open network |
+| Timeout kills the process **group** | a grandchild spawned by the script is reaped with it |
+| `RLIMIT_AS` | `bytearray(3 GiB)` → `MemoryError` |
+| `RLIMIT_CPU` | `while True: pass` → killed by signal at 1 CPU-second, `timed_out=False` |
+| Trace determinism | two runs of one script → byte-identical JSONL |
+
+### The result that took two attempts
+
+The first network guard replaced `socket.socket` with a *function*. `ssl.py` executes
+`class SSLSocket(socket)` at import time, so `import urllib.request` died with
+`TypeError: function() argument 'code' must be code, not str` — blocking the network
+by accident, in a way that would have confused anyone whose script merely imported
+`http.client`. The guard now installs a raising **subclass**, so the import succeeds
+and the denial happens at `socket.create_connection`, where the connection is actually
+attempted. Both behaviours are test-pinned.
+
+### Worked example
+
+```
+$ claimverifier run-sandbox --task tasks/code_reproduction/recompute_accuracy.yaml
+
+Task            : recompute_accuracy
+Code artifact   : code_accuracy (data/fixtures/code/compute_accuracy.py)
+Content hash    : sha256:9bc64b75db9d64c24eb78e3696cd5e1679771ac83a74062733d25f65800a3d9a
+Command         : python compute_accuracy.py
+
+Policy (recorded verbatim into the trace):
+  timeout       : 10.0s
+  network       : blocked — in-process socket guard; cooperative, bypassable, not a boundary
+  working dir   : fresh temp dir, removed after the run
+  stdin         : closed
+  env allowlist : LANG, LC_ALL, LC_CTYPE, PATH, SYSTEMROOT
+  env overrides : PYTHONDONTWRITEBYTECODE=1, PYTHONHASHSEED=0, PYTHONNOUSERSITE=1, TZ=UTC
+  rlimits       : RLIMIT_AS=2147483648, RLIMIT_CPU=11, RLIMIT_FSIZE=8388608, RLIMIT_NOFILE=256
+  isolation     : none — controlled fixture execution, not a security boundary
+
+Outcome         : exited 0
+Network attempts: none
+Files written   : none
+
+stdout:
+  accuracy=0.80
+stderr:
+  (empty)
+```
+
+The policy is printed *before* the number, and recorded before it in the trace, for
+the same reason: `accuracy=0.80` is not a result until you know what produced it.
+
+### How to read this
+
+Two fixtures is not a reproducibility benchmark. Both scripts are stdlib-only, embed
+their own data, take no arguments, and were written by the same agent as the sandbox
+that runs them. What the table shows is that the controls hold and cost nothing: the
+scripts still reproduce with the environment scrubbed, the network denied, and the
+filesystem view emptied. The interesting failures are the guard tests above, not the
+two passes.
+
+Wall-clock duration is measured (≈30 ms per script here) and deliberately kept out of
+the trace unless `--with-timing` is passed. It is the only value in an execution record
+that cannot be reproduced.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 285 passed
+python3 -m pytest -q     # 346 passed
 ruff check .             # all checks passed
 ```
 
@@ -297,7 +391,14 @@ ruff check .             # all checks passed
 | M3 | 36 | 102 |
 | M4 | 69 | 171 |
 | M5 | 114 | 285 |
+| M6 | 61 | 346 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
-used anywhere in the default path. M5's tests execute two committed, stdlib-only
-fixture scripts as child processes — local, harmless, and offline.
+used anywhere in the default path. M5's and M6's tests execute committed, stdlib-only
+fixture scripts (plus a few written by the tests themselves) as child processes —
+local, harmless, and offline. The socket tests either construct a socket or are
+refused before one exists; none of them connects to anything.
+
+Two tests are load-bearing on the wall clock: the CPU-limit test burns ~1 CPU-second
+and the process-group test waits ~1 s for its timeout. Both assert that something was
+*killed*, so a slow machine makes them more likely to pass, not less.

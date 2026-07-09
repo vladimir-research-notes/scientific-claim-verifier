@@ -11,6 +11,9 @@ claimverifier run-checks --task tasks/table_claims/contradicted_f1.yaml
 python3 scripts/03_run_checks.py --task <task.yaml> [--json] [--no-execute]
 ```
 
+Scripts execute in the Milestone 6 sandbox; `claimverifier run-sandbox` runs that
+layer on its own and emits its JSONL trace (`docs/SANDBOX.md`).
+
 ## A check does not decide the claim's fate
 
 Checks produce *evidence about* a claim. The support label, the reproduction
@@ -179,30 +182,52 @@ The observable is parsed from a `name=value` line in stdout, preferring a name t
 matches one of the claim's metrics. If the script prints several unrelated metric
 lines and none matches, no value is parsed: picking one would be a guess.
 
+The artifact's `entrypoint` (`"python compute_accuracy.py"`) is recorded but never
+parsed or executed — a task file must not be able to name a command to run. The runner
+invokes the current interpreter on the artifact's declared `path`.
+
 ## Sandbox honesty
 
-`SubprocessScriptRunner` runs `python <script>` as a child process with a wall-clock
-timeout, `stdin` closed, and stdout/stderr/exit-code captured. That is **all**. It
-does not copy the script to a temp directory, scrub the environment, restrict the
-filesystem, or block the network. **It is not a security boundary of any kind.** The
-scripts it runs are trusted, committed, stdlib-only fixtures in this repository.
+`code_execution` runs the script through `SandboxScriptRunner` (Milestone 6): a fresh
+temp working directory, an environment scrubbed to an allowlist, closed stdin, POSIX
+resource limits applied before `exec`, a wall-clock timeout that kills the whole
+process group, and an in-process guard that makes `socket` calls raise **and records
+them**. The full policy is recorded into the run's trace, ahead of the number.
 
-Milestone 6 adds the temp working directory, the no-network policy, and the trace
-record **behind the same `ScriptRunner` protocol**, so no check changes when it
-lands. `PYTHONHASHSEED=0` is set for the child — a determinism measure, not
-isolation.
+Those are **reproducibility** controls, not security controls. There is no process
+isolation, no namespace, no seccomp filter, and the network guard lives inside the
+child's own interpreter, so code that means to bypass it can. **It is not a security
+boundary of any kind**, and the scripts it runs are trusted, committed, stdlib-only
+fixtures in this repository. See `docs/SANDBOX.md` for exactly what is and is not
+enforced.
+
+Two consequences reach this layer:
+
+- A script that reached for the network is not self-contained, even if it printed the
+  right number. The denied calls land in the check's `inputs.network_attempts` and in
+  its notes, on every outcome.
+- If the sandbox could not *enforce* the policy it promised — the guard failed to
+  install, say — the runner raises `SandboxError` and the check is `error`. Reporting
+  the script's output anyway would attribute a number to conditions that never held.
+
+Milestone 5 wrote this check against the `ScriptRunner` protocol and shipped a bare
+subprocess behind it. M6 replaced the implementation; the check's only edits were its
+default runner and the two facts above.
 
 ## Determinism
 
 Every check is a pure function of its inputs apart from `code_execution`, which
 starts a child process. No wall clock, no RNG, and no absolute filesystem paths
 reach a check's recorded output: the executed command is recorded as
-`("python", "gc_content.py")`, never the machine's interpreter path, and no duration
-is recorded (timing belongs in M6's trace). Floats are rounded to 12 decimal places
-before being recorded, so `40.8 / 12` is written `3.4` rather than
-`3.4000000000000004` — far below any tolerance in play, so rounding can never flip a
-verdict. Checks are emitted in a fixed type order, and `check_id`s are numbered per
-type (`c_dataset_mean.dataset_statistic.2`).
+`("python", "gc_content.py")`, never the machine's interpreter path; the sandbox's
+random temp path is replaced with `<sandbox>` in captured output; and no duration is
+recorded (timing lives in the sandbox trace, where it is opt-in). The child runs with
+`PYTHONHASHSEED=0` and `TZ=UTC`, so a script iterating a set or printing a date prints
+the same thing on every run. Floats are rounded to 12 decimal places before being
+recorded, so `40.8 / 12` is written `3.4` rather than `3.4000000000000004` — far below
+any tolerance in play, so rounding can never flip a verdict. Checks are emitted in a
+fixed type order, and `check_id`s are numbered per type
+(`c_dataset_mean.dataset_statistic.2`).
 
 ## Not implemented, and why
 
