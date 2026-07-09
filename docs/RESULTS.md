@@ -786,10 +786,47 @@ verdict. Neither says anything about whether the verdicts are correct — that i
 `docs/REPORTS.md` §6). A report that scored itself would be answering a different
 question.
 
+## M10 — optional adapters (measuring the harness, not a model)
+
+```bash
+python3 -m pytest tests/test_adapters.py -q          # 70 tests
+python3 scripts/06_record_llm_fixtures.py            # recordings are current
+claimverifier extract-claims --task tasks/table_claims/accuracy_improvement.yaml --extractor recorded
+```
+
+The recorded adapter replays four committed, **hand-authored** synthetic responses and the
+`LLMClaimExtractor` parses them through the same code the rule-based baseline is scored by:
+
+| Fixture | Fields matched vs. gold |
+| --- | --- |
+| `accuracy_improvement` | 8 / 8 |
+| `dataset_mean` | 6 / 8 (deliberately drops the `count` metric and the `n = 12` condition) |
+| `underspecified_split` | 8 / 8 |
+| `gc_content` | 8 / 8 (wrapped in a Markdown code fence, to exercise `strip_code_fence`) |
+| **Total** | **30 / 32** |
+
+That 30/32 measures exactly one thing — that a request is fingerprinted, replayed, parsed,
+and scored faithfully — and **nothing at all** about any model's ability to extract a claim.
+No API was called and no language model produced the responses; the model name
+`recorded-fixture-v1` is fictitious so the fixture cannot imply otherwise (see
+`data/fixtures/llm/README.md`). The one deliberate miss is what proves the scorer is
+connected: a file of perfect answers would score 32/32 and demonstrate only the author's
+generosity. The mock adapter returns an *empty* extraction on purpose (1/8, scored
+`underspecified` downstream) — a mock that guessed would be a mock that lies.
+
+The paid path is inert by construction, not by configuration. The `ApiAdapterStub` is the
+only adapter even *capable* of a paid call (a test enumerates the registry and asserts
+exactly one), and `build_adapter("api")` returns it disabled, in dry-run, with a $0.00 cost
+guard and no transport. A live call requires four independent acts — flip `enabled`, set
+`SCV_ENABLE_PAID_API=1`, register a price for the model (the repo ships none), and inject an
+HTTP transport (the repo ships none, and a test asserts no module under `adapters/` and no
+declared dependency imports one). Each gate is tested with a counting fake transport that a
+default build never reaches. See `docs/ADAPTERS.md`.
+
 ## Test and lint status
 
 ```bash
-python3 -m pytest -q     # 600 passed
+python3 -m pytest -q     # 670 passed
 ruff check .             # all checks passed
 ```
 
@@ -805,6 +842,7 @@ ruff check .             # all checks passed
 | M7 | 106 | 452 |
 | M8 | 48 | 500 |
 | M9 | 100 | 600 |
+| M10 | 70 | 670 |
 
 All tests are CPU-only and offline; none touch the network, and no paid API is
 used anywhere in the default path. M5's, M6's, M8's, and M9's tests execute committed,

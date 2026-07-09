@@ -417,6 +417,18 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
   suite file <code>tasks/smoke_suite.yaml</code> is validated too: it is invalid if it names a
   <code>task_id</code> no task declares.</p>
 
+  <h2>Optional adapters (Milestone 10)</h2>
+  <p>The recorded adapter replays four <strong>hand-authored</strong> synthetic responses through
+  the same parse-and-score code as the rule-based baseline: <code>30/32</code> fields against gold
+  (<code>accuracy_improvement</code>, <code>underspecified_split</code>, <code>gc_content</code> at
+  8/8; <code>dataset_mean</code> deliberately at 6/8). That number measures the
+  <strong>replay/parse/score harness, not any model</strong> — no API was called and no model
+  produced the responses (the model name <code>recorded-fixture-v1</code> is fictitious). The mock
+  adapter returns an <em>empty</em> extraction on purpose (1/8, scored <code>underspecified</code>
+  downstream). The paid <code>ApiAdapterStub</code> is the only adapter capable of a paid call and
+  ships disabled, in dry-run, with a $0.00 guard and no transport; no HTTP client is declared or
+  imported, and tests assert it. See <code>docs/ADAPTERS.md</code> in the repo.</p>
+
   <h2>Tests and lint</h2>
   <table>
     <tr><th>Milestone</th><th>New tests</th><th>Total</th></tr>
@@ -430,6 +442,7 @@ claimverifier extract-claims --task &lt;task.yaml&gt;   # per-task report vs. go
     <tr><td>M7</td><td>106</td><td>452</td></tr>
     <tr><td>M8</td><td>48</td><td>500</td></tr>
     <tr><td>M9</td><td>100</td><td>600</td></tr>
+    <tr><td>M10</td><td>70</td><td>670</td></tr>
   </table>
   <p>All tests are CPU-only and offline; none touch the network, and no paid API is used
   anywhere in the default path. Milestones 5, 6, 8, and 9 execute committed, stdlib-only fixture

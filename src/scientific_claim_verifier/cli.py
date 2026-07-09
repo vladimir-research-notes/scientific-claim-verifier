@@ -7,7 +7,8 @@ Commands online so far:
 - ``claimverifier check-env``          — offline environment self-check (M0).
 - ``claimverifier version``            — print the package version (M0).
 - ``claimverifier validate-fixtures``  — validate task and suite fixtures (M2, M8).
-- ``claimverifier extract-claims``     — rule-based claim extraction (M3).
+- ``claimverifier extract-claims``     — claim extraction; ``--extractor rule`` (M3,
+  default) or ``recorded``/``mock`` via an offline adapter (M10).
 - ``claimverifier link-evidence``      — evidence linking (M4).
 - ``claimverifier run-checks``         — deterministic verification checks (M5).
 - ``claimverifier run-sandbox``        — controlled fixture execution + trace (M6).
@@ -82,7 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     extract = subparsers.add_parser(
         "extract-claims",
-        help="Run the rule-based claim extractor on a task (offline).",
+        help="Extract a task's claim (rule-based by default; --extractor recorded|mock, offline).",
     )
     extraction.add_extract_arguments(extract)
 
@@ -138,7 +139,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "validate-fixtures":
         return validation.run([args.tasks_dir])
     if args.command == "extract-claims":
-        return extraction.extract_and_report(args.task, out_dir=args.out, as_json=args.json)
+        return extraction.extract_and_report(
+            args.task,
+            out_dir=args.out,
+            as_json=args.json,
+            extractor=args.extractor,
+            recordings=args.recordings,
+        )
     if args.command == "link-evidence":
         return linking.link_and_report(
             args.task,

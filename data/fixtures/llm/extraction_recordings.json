@@ -1,0 +1,70 @@
+{
+  "format": "scv-llm-recordings-v1",
+  "notes": "Hand-authored synthetic responses in the shape a model would return. No language model produced them and no API was called. The model name 'recorded-fixture-v1' is fictitious. Token counts are estimates from adapters.cost, not vendor-reported. Regenerate with `python3 scripts/06_record_llm_fixtures.py --write`.",
+  "recordings": [
+    {
+      "label": "accuracy_improvement",
+      "notes": "A well-formed comparison claim, extracted correctly. Matches gold on all 8 fields.",
+      "request": {
+        "max_tokens": 512,
+        "model": "recorded-fixture-v1",
+        "prompt": "Claim id: c_accuracy_improvement\nClaim type: comparison_claim\nClaim text: Method A improves accuracy from 72.0 to 78.0 over the baseline on SST-2.\n\nArtifacts available (ids and shapes only):\n  - paper paper_sst2: passages [p_setup (Setup), p_results (Results)]\n  - table t_results: columns ['method', 'accuracy']\n\nReturn one JSON object with exactly these keys:\n{\n  \"expected_value\": number or null,       // the headline value the claim asserts\n  \"baseline_value\": number or null,       // the \"from\" value of a comparison, else null\n  \"comparison_operator\": one of \"=\", \">\", \"<\", \">=\", \"<=\", \"~\", or null,\n  \"units\": \"%\" or null,                   // only if the claim's value is a percentage\n  \"metrics\": [string],                    // canonical metric names, e.g. [\"accuracy\"]\n  \"datasets\": [string],                   // dataset or benchmark names named in the claim\n  \"entities\": [string],                   // methods, models, or baselines named in the claim\n  \"conditions\": [string]                  // stated conditions, e.g. [\"n = 12\"]\n}\n\nRules:\n  - Use only what the claim text states. The artifact list is for recognising names, not for reading values out of.\n  - A comparison such as \"improves from X to Y\" sets baseline_value=X, expected_value=Y, comparison_operator=\">\".\n  - A recomputation claim (a dataset statistic, a script's output) uses \"~\".\n  - A sample count such as \"12 samples\" is the metric \"count\" and the condition \"n = 12\", not the headline value.\n  - Output the JSON object alone.",
+        "system": "You are a claim-extraction function for a scientific claim verifier. You convert one scientific claim into structured fields. You output a single JSON object and nothing else: no prose, no explanation. Leave a field null or empty rather than guessing; an unextracted field is handled safely downstream, and a wrong one is not. Report values exactly as the claim states them; do not convert units or scales.",
+        "temperature": 0.0
+      },
+      "response": {
+        "completion_tokens": 79,
+        "prompt_tokens": 656,
+        "text": "{\n  \"expected_value\": 78.0,\n  \"baseline_value\": 72.0,\n  \"comparison_operator\": \">\",\n  \"units\": \"%\",\n  \"metrics\": [\"accuracy\"],\n  \"datasets\": [\"SST-2\"],\n  \"entities\": [\"Method A\", \"baseline\"],\n  \"conditions\": []\n}"
+      }
+    },
+    {
+      "label": "dataset_mean",
+      "notes": "Deliberately imperfect: drops the 'count' metric and the 'n = 12' condition. Scores 6/8 against gold, which is the point — a fixture that always wins proves nothing about the scorer.",
+      "request": {
+        "max_tokens": 512,
+        "model": "recorded-fixture-v1",
+        "prompt": "Claim id: c_dataset_mean\nClaim type: dataset_claim\nClaim text: The measurements dataset has 12 samples with a mean value of 3.4.\n\nArtifacts available (ids and shapes only):\n  - paper paper_measurements: passages [p_dataset (Data)]\n  - dataset ds_measurements: columns ['sample_id', 'value']\n\nReturn one JSON object with exactly these keys:\n{\n  \"expected_value\": number or null,       // the headline value the claim asserts\n  \"baseline_value\": number or null,       // the \"from\" value of a comparison, else null\n  \"comparison_operator\": one of \"=\", \">\", \"<\", \">=\", \"<=\", \"~\", or null,\n  \"units\": \"%\" or null,                   // only if the claim's value is a percentage\n  \"metrics\": [string],                    // canonical metric names, e.g. [\"accuracy\"]\n  \"datasets\": [string],                   // dataset or benchmark names named in the claim\n  \"entities\": [string],                   // methods, models, or baselines named in the claim\n  \"conditions\": [string]                  // stated conditions, e.g. [\"n = 12\"]\n}\n\nRules:\n  - Use only what the claim text states. The artifact list is for recognising names, not for reading values out of.\n  - A comparison such as \"improves from X to Y\" sets baseline_value=X, expected_value=Y, comparison_operator=\">\".\n  - A recomputation claim (a dataset statistic, a script's output) uses \"~\".\n  - A sample count such as \"12 samples\" is the metric \"count\" and the condition \"n = 12\", not the headline value.\n  - Output the JSON object alone.",
+        "system": "You are a claim-extraction function for a scientific claim verifier. You convert one scientific claim into structured fields. You output a single JSON object and nothing else: no prose, no explanation. Leave a field null or empty rather than guessing; an unextracted field is handled safely downstream, and a wrong one is not. Report values exactly as the claim states them; do not convert units or scales.",
+        "temperature": 0.0
+      },
+      "response": {
+        "completion_tokens": 73,
+        "prompt_tokens": 649,
+        "text": "{\n  \"expected_value\": 3.4,\n  \"baseline_value\": null,\n  \"comparison_operator\": \"~\",\n  \"units\": null,\n  \"metrics\": [\"mean\"],\n  \"datasets\": [\"measurements\"],\n  \"entities\": [],\n  \"conditions\": []\n}"
+      }
+    },
+    {
+      "label": "gc_content",
+      "notes": "Wrapped in a Markdown code fence, as models habitually do. Exercises strip_code_fence; matches gold on all 8 fields once unwrapped.",
+      "request": {
+        "max_tokens": 512,
+        "model": "recorded-fixture-v1",
+        "prompt": "Claim id: c_gc_content\nClaim type: code_reproduction_claim\nClaim text: The synthetic sequence has a GC content of 0.50.\n\nArtifacts available (ids and shapes only):\n  - paper paper_gc: passages [p_gc (Sequence analysis)]\n  - code code_gc: entrypoint python gc_content.py\n\nReturn one JSON object with exactly these keys:\n{\n  \"expected_value\": number or null,       // the headline value the claim asserts\n  \"baseline_value\": number or null,       // the \"from\" value of a comparison, else null\n  \"comparison_operator\": one of \"=\", \">\", \"<\", \">=\", \"<=\", \"~\", or null,\n  \"units\": \"%\" or null,                   // only if the claim's value is a percentage\n  \"metrics\": [string],                    // canonical metric names, e.g. [\"accuracy\"]\n  \"datasets\": [string],                   // dataset or benchmark names named in the claim\n  \"entities\": [string],                   // methods, models, or baselines named in the claim\n  \"conditions\": [string]                  // stated conditions, e.g. [\"n = 12\"]\n}\n\nRules:\n  - Use only what the claim text states. The artifact list is for recognising names, not for reading values out of.\n  - A comparison such as \"improves from X to Y\" sets baseline_value=X, expected_value=Y, comparison_operator=\">\".\n  - A recomputation claim (a dataset statistic, a script's output) uses \"~\".\n  - A sample count such as \"12 samples\" is the metric \"count\" and the condition \"n = 12\", not the headline value.\n  - Output the JSON object alone.",
+        "system": "You are a claim-extraction function for a scientific claim verifier. You convert one scientific claim into structured fields. You output a single JSON object and nothing else: no prose, no explanation. Leave a field null or empty rather than guessing; an unextracted field is handled safely downstream, and a wrong one is not. Report values exactly as the claim states them; do not convert units or scales.",
+        "temperature": 0.0
+      },
+      "response": {
+        "completion_tokens": 74,
+        "prompt_tokens": 642,
+        "text": "```json\n{\n  \"expected_value\": 0.5,\n  \"baseline_value\": null,\n  \"comparison_operator\": \"~\",\n  \"units\": null,\n  \"metrics\": [\"gc_content\"],\n  \"datasets\": [],\n  \"entities\": [],\n  \"conditions\": []\n}\n```"
+      }
+    },
+    {
+      "label": "underspecified_split",
+      "notes": "A bare numeric claim. Extraction is complete and correct; the claim is still underspecified, which is a scoring verdict (M7), not an extraction failure.",
+      "request": {
+        "max_tokens": 512,
+        "model": "recorded-fixture-v1",
+        "prompt": "Claim id: c_underspecified_split\nClaim type: numeric_claim\nClaim text: The method reaches 90% accuracy.\n\nArtifacts available (ids and shapes only):\n  - paper paper_splits: passages [p_headline (Abstract), p_detail (Results)]\n  - table t_splits: columns ['split', 'accuracy']\n\nReturn one JSON object with exactly these keys:\n{\n  \"expected_value\": number or null,       // the headline value the claim asserts\n  \"baseline_value\": number or null,       // the \"from\" value of a comparison, else null\n  \"comparison_operator\": one of \"=\", \">\", \"<\", \">=\", \"<=\", \"~\", or null,\n  \"units\": \"%\" or null,                   // only if the claim's value is a percentage\n  \"metrics\": [string],                    // canonical metric names, e.g. [\"accuracy\"]\n  \"datasets\": [string],                   // dataset or benchmark names named in the claim\n  \"entities\": [string],                   // methods, models, or baselines named in the claim\n  \"conditions\": [string]                  // stated conditions, e.g. [\"n = 12\"]\n}\n\nRules:\n  - Use only what the claim text states. The artifact list is for recognising names, not for reading values out of.\n  - A comparison such as \"improves from X to Y\" sets baseline_value=X, expected_value=Y, comparison_operator=\">\".\n  - A recomputation claim (a dataset statistic, a script's output) uses \"~\".\n  - A sample count such as \"12 samples\" is the metric \"count\" and the condition \"n = 12\", not the headline value.\n  - Output the JSON object alone.",
+        "system": "You are a claim-extraction function for a scientific claim verifier. You convert one scientific claim into structured fields. You output a single JSON object and nothing else: no prose, no explanation. Leave a field null or empty rather than guessing; an unextracted field is handled safely downstream, and a wrong one is not. Report values exactly as the claim states them; do not convert units or scales.",
+        "temperature": 0.0
+      },
+      "response": {
+        "completion_tokens": 69,
+        "prompt_tokens": 643,
+        "text": "{\n  \"expected_value\": 90.0,\n  \"baseline_value\": null,\n  \"comparison_operator\": \"=\",\n  \"units\": \"%\",\n  \"metrics\": [\"accuracy\"],\n  \"datasets\": [],\n  \"entities\": [],\n  \"conditions\": []\n}"
+      }
+    }
+  ]
+}

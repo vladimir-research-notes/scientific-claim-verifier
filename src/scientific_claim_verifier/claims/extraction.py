@@ -656,15 +656,45 @@ def render_extraction(
     return "\n".join(lines)
 
 
+#: The extractors ``extract-claims`` accepts. ``rule`` is the default and the only one
+#: in the default path; ``recorded`` and ``mock`` route through an offline, free LLM
+#: adapter (Milestone 10). ``api`` is intentionally not an extractor: it returns no
+#: content unless a caller opts in, prices a model, and injects a transport.
+EXTRACTOR_CHOICES = ("rule", "recorded", "mock")
+
+
+def build_extractor(name: str = "rule", *, recordings: str | Path | None = None):
+    """Return an extractor exposing ``extract(claim, bundle) -> Extraction``.
+
+    ``rule`` is the transparent Milestone 3 baseline. ``recorded`` and ``mock`` route
+    extraction through a Milestone 10 adapter; both are offline and free by
+    construction. The adapter modules are imported **lazily**, so the default path
+    neither imports nor constructs an adapter.
+    """
+    if name == "rule":
+        return RuleBasedClaimExtractor()
+    if name in ("recorded", "mock"):
+        from ..adapters import build_adapter  # lazy: keeps adapters out of the default path
+        from .llm_extraction import LLMClaimExtractor
+        adapter = build_adapter(name, recordings=str(recordings) if recordings else None)
+        return LLMClaimExtractor(adapter)
+    raise ValueError(
+        f"unknown extractor {name!r}; expected one of {', '.join(EXTRACTOR_CHOICES)}"
+    )
+
+
 def extract_and_report(
     task_path: str | Path,
     out_dir: str | Path | None = None,
     as_json: bool = False,
     repo_root: str | Path | None = None,
+    extractor: str = "rule",
+    recordings: str | Path | None = None,
 ) -> int:
     """Load a task, extract its claim, print a report, optionally write JSON.
 
-    Returns 0 on success, 1 if the task could not be loaded. Compares against the
+    Returns 0 on success, 1 if the task could not be loaded or the chosen extractor
+    refused (e.g. a recorded adapter with no matching fixture). Compares against the
     task's gold extraction target when the report is shown.
     """
     try:
@@ -673,7 +703,21 @@ def extract_and_report(
         print(f"error: could not load task {task_path}: {exc}", file=sys.stderr)
         return 1
 
-    extraction = RuleBasedClaimExtractor().extract(task.input_claim, task.bundle)
+    try:
+        engine = build_extractor(extractor, recordings=recordings)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    try:
+        extraction = engine.extract(task.input_claim, task.bundle)
+    except RuntimeError as exc:
+        # AdapterError (recording miss, malformed/dry-run response) subclasses
+        # RuntimeError; the extractor refuses rather than fabricating a claim.
+        print(
+            f"error: the {extractor!r} extractor could not extract this claim: {exc}",
+            file=sys.stderr,
+        )
+        return 1
     gold = task.spec.expected.claim
     score = score_extraction(extraction.claim, gold)
 
@@ -702,7 +746,13 @@ def run_cli(argv: list[str]) -> int:
     )
     add_extract_arguments(parser)
     args = parser.parse_args(argv)
-    return extract_and_report(args.task, out_dir=args.out, as_json=args.json)
+    return extract_and_report(
+        args.task,
+        out_dir=args.out,
+        as_json=args.json,
+        extractor=args.extractor,
+        recordings=args.recordings,
+    )
 
 
 def add_extract_arguments(parser: argparse.ArgumentParser) -> None:
@@ -724,6 +774,22 @@ def add_extract_arguments(parser: argparse.ArgumentParser) -> None:
         help="Write <task_id>.extraction.json to this directory.",
     )
     parser.add_argument("--json", action="store_true", help="Print the extraction as JSON.")
+    parser.add_argument(
+        "--extractor",
+        default="rule",
+        choices=EXTRACTOR_CHOICES,
+        help=(
+            "Extractor to use: 'rule' (default, transparent baseline), 'recorded' "
+            "(replay committed LLM fixtures), or 'mock'. The LLM extractors are offline "
+            "and free; see docs/ADAPTERS.md."
+        ),
+    )
+    parser.add_argument(
+        "--recordings",
+        default=None,
+        metavar="PATH",
+        help="Recordings file for '--extractor recorded' (default: the committed fixtures).",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
